@@ -27,6 +27,27 @@ function optional<T>(res: Res<T>): T[] {
   return res.data ?? []
 }
 
+const PAGE = 1000
+const MAX_PAGES = 20
+
+/** Todo o histórico trazido de fora, página a página: "Desde o início" não pode cortar os mais antigos. */
+async function allHistory(me: string): Promise<Res<HistoryEntry>> {
+  const rows: HistoryEntry[] = []
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await supabase
+      .from('history_entries')
+      .select('id, kind, occurred_on, title, details, source')
+      .eq('person_id', me)
+      .order('occurred_on', { ascending: false })
+      .order('id')
+      .range(page * PAGE, (page + 1) * PAGE - 1)
+    if (error) return { data: null, error }
+    rows.push(...((data ?? []) as HistoryEntry[]))
+    if (!data || data.length < PAGE) break
+  }
+  return { data: rows, error: null }
+}
+
 export interface Evolution extends EvolutionSources {
   /** false = a migration do histórico ainda não foi aplicada (sem importação nem marcos). */
   historyAvailable: boolean
@@ -40,12 +61,7 @@ export function useEvolution() {
     enabled: Boolean(me),
     queryFn: async (): Promise<Evolution> => {
       const [history, logs, meals, adjustments, participations, checkins] = await Promise.all([
-        supabase
-          .from('history_entries')
-          .select('id, kind, occurred_on, title, details, source')
-          .eq('person_id', me!)
-          .order('occurred_on', { ascending: false })
-          .limit(LIMIT),
+        allHistory(me!),
         supabase
           .from('daily_logs')
           .select('log_date')
@@ -82,7 +98,7 @@ export function useEvolution() {
       const dateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' })
       return {
         historyAvailable,
-        history: optional(history as Res<HistoryEntry>),
+        history: optional(history),
         workoutDays: optional(logs as Res<{ log_date: string }>).map((l) => l.log_date),
         meals: optional(
           meals as unknown as Res<{ check_date: string; outcome: string; note: string | null; plan_items: { title: string } }>,
@@ -106,7 +122,7 @@ export function useEvolution() {
             ends_on: p.challenges!.ends_on,
             goal: p.weekly_goal,
             done: done.get(p.challenge_id) ?? 0,
-            left: Boolean(p.left_at),
+            leftOn: p.left_at ? dateFmt.format(new Date(p.left_at)) : null,
           })),
       }
     },
