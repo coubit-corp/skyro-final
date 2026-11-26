@@ -377,7 +377,8 @@ export function exerciseStats(history: Workout[], name: string): ExerciseStats {
     }
     if (maxKg > 0) stats.points.push({ date: w.occurred_on, maxKg, best1rm: best })
   }
-  stats.points.sort((a, b) => a.date.localeCompare(b.date))
+  // `history` vem do mais novo para o mais antigo; inverter antes mantém a ordem dentro do mesmo dia.
+  stats.points.reverse().sort((a, b) => a.date.localeCompare(b.date))
   for (const p of stats.points) {
     if (!stats.maxWeight || p.maxKg > stats.maxWeight.kg) stats.maxWeight = { kg: p.maxKg, date: p.date }
     if (p.best1rm > 0 && (!stats.best1rm || p.best1rm > stats.best1rm.kg)) stats.best1rm = { kg: p.best1rm, date: p.date }
