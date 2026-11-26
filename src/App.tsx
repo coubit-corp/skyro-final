@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Settings,
   Users,
+  UsersRound,
 } from 'lucide-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { lazy, Suspense } from 'react'
@@ -46,6 +47,7 @@ const CompletarPerfil = lazy(() =>
   import('./pages/profissional/CompletarPerfil').then((m) => ({ default: m.CompletarPerfil })),
 )
 const Pacientes = lazy(() => import('./pages/profissional/Pacientes').then((m) => ({ default: m.Pacientes })))
+const Comunidade = lazy(() => import('./pages/Comunidade').then((m) => ({ default: m.Comunidade })))
 const Registros = lazy(() => import('./pages/equipe/Registros').then((m) => ({ default: m.Registros })))
 
 // Mesma ordem de abas dos mockups.
@@ -54,6 +56,7 @@ const PERSON_NAV: NavItem[] = [
   { to: '/saude', label: 'Saúde', icon: Heart },
   { to: '/plano', label: 'Plano', icon: ClipboardList },
   { to: '/rotina', label: 'Rotina', icon: CalendarDays },
+  { to: '/comunidade', label: 'Comunidade', icon: UsersRound },
   { to: '/progresso', label: 'Progresso', icon: ChartNoAxesColumn },
   // No celular, mensagens e configurações abrem pelos ícones no topo do Início
   // (como nos mockups, são 5 abas). "Meu perfil" fica dentro de Configurações.
@@ -63,6 +66,7 @@ const PERSON_NAV: NavItem[] = [
 
 const PRO_NAV: NavItem[] = [
   { to: '/pro', label: 'Pacientes', icon: Users, end: true, alsoActiveOn: ['/pro/pacientes'] },
+  { to: '/pro/comunidade', label: 'Comunidade', icon: UsersRound },
   { to: '/pro/mensagens', label: 'Mensagens', icon: MessageSquare, unreadFor: 'professional' },
   // O perfil (dados, fotos e vídeos, avaliações) fica dentro de Configurações.
   { to: '/pro/configuracoes', label: 'Ajustes', icon: Settings },
@@ -122,6 +126,7 @@ export default function App() {
                 <Route path="/configuracoes" element={<Configuracoes />} />
                 <Route path="/progresso" element={<Progresso />} />
                 <Route path="/progresso/semana" element={<ResumoSemana />} />
+                <Route path="/comunidade" element={<Comunidade />} />
               </Route>
 
               {/* App do profissional */}
@@ -137,6 +142,7 @@ export default function App() {
                 <Route path="/pro" element={<Pacientes />} />
                 <Route path="/pro/pacientes/:id" element={<Paciente />} />
                 <Route path="/pro/agenda" element={<Navigate to="/pro" replace />} />
+                <Route path="/pro/comunidade" element={<Comunidade />} />
                 <Route path="/pro/mensagens" element={<MensagensPro />} />
                 <Route path="/pro/mensagens/:personId" element={<MensagensPro />} />
                 <Route path="/pro/perfil" element={<Navigate to="/pro/configuracoes" replace />} />

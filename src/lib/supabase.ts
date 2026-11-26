@@ -31,3 +31,10 @@ export const PORTFOLIO_BUCKET = 'portfolio'
 export function portfolioUrl(path: string): string {
   return supabase.storage.from(PORTFOLIO_BUCKET).getPublicUrl(path).data.publicUrl
 }
+
+export const COMMUNITY_BUCKET = 'community'
+
+/** Link público de uma foto de post da Comunidade. */
+export function communityUrl(path: string): string {
+  return supabase.storage.from(COMMUNITY_BUCKET).getPublicUrl(path).data.publicUrl
+}
