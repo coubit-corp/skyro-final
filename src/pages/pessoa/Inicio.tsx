@@ -15,10 +15,11 @@ import {
   useHabits,
   useLatestTip,
   useMarkTipRead,
+  useMyTeam,
   useToggleHabit,
 } from '../../hooks/usePersonData'
 import { addDays, formatHours, formatMinutes, formatTime, today } from '../../lib/dates'
-import { specialtyLabel } from '../../lib/specialties'
+import { SPECIALTIES, specialtyLabel } from '../../lib/specialties'
 import { nextStep } from '../../lib/nextStep'
 import { bestStreak, currentStreak } from '../../lib/streak'
 
@@ -31,6 +32,7 @@ export function Inicio() {
   const checks = useHabitChecks()
   const logs = useDailyLogs(7)
   const tip = useLatestTip()
+  const team = useMyTeam()
   const toggle = useToggleHabit()
   const markRead = useMarkTipRead()
   const [tipOpen, setTipOpen] = useState(false)
@@ -116,6 +118,33 @@ export function Inicio() {
           >
             Feito
           </button>
+        </div>
+      )}
+
+      {/* Sem ninguém acompanhando: a busca entra logo depois da ação do dia */}
+      {team.data?.length === 0 && (
+        <div className="card space-y-3">
+          <div>
+            <h2 className="font-semibold">Qual profissional você procura?</h2>
+            <p className="text-sm text-muted">Compare o que cada um oferece antes de escolher.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {SPECIALTIES.map((s) => (
+              <Link
+                key={s.value}
+                to={`/saude/perto?especialidade=${s.value}`}
+                className="rounded-full border border-line px-4 py-2 text-sm font-semibold transition hover:border-ink/40"
+              >
+                {s.label}
+              </Link>
+            ))}
+            <Link
+              to="/saude/perto"
+              className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-ink/40"
+            >
+              Ainda não sei
+            </Link>
+          </div>
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import { AcompanhamentoTabs } from '../../components/AcompanhamentoTabs'
 import { MapPin, MessageSquare } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
@@ -24,7 +25,8 @@ export function Saude() {
 
   return (
     <section>
-      <PageHeader title="Sua saúde" subtitle="Profissionais que acompanham a sua rotina real." />
+      <AcompanhamentoTabs />
+      <PageHeader title="Profissionais" subtitle="Quem acompanha a sua rotina e onde encontrar mais." />
 
       <SectionTitle
         action={

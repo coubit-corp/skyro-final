@@ -51,7 +51,7 @@ export function Progresso() {
 
   return (
     <section className="space-y-4">
-      <PageHeader title="Seu progresso" subtitle={`Calculado a partir dos seus registros dos últimos ${XP_WINDOW_DAYS} dias.`} />
+      <PageHeader title="Sua evolução" subtitle={`Calculado a partir dos seus registros dos últimos ${XP_WINDOW_DAYS} dias.`} />
 
       {!data ? (
         <div className="space-y-4" aria-busy="true">

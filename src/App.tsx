@@ -2,12 +2,12 @@ import {
   BadgeCheck,
   CalendarDays,
   ChartNoAxesColumn,
-  ClipboardList,
   Heart,
   History,
   House,
   MessageSquare,
   Settings,
+  UserRound,
   Users,
   UsersRound,
 } from 'lucide-react'
@@ -19,6 +19,7 @@ import { useAuth } from './auth/auth-context'
 import { homeFor } from './auth/home'
 import { RequireProProfile } from './auth/RequireProProfile'
 import { RequireRole } from './auth/RequireRole'
+import { AcompanhamentoRedirect } from './components/AcompanhamentoTabs'
 import { AppLayout } from './components/AppLayout'
 import type { NavItem } from './components/BottomNav'
 import { FullScreenLoader } from './components/FullScreenLoader'
@@ -49,30 +50,38 @@ const MensagensPessoa = lazy(() => import('./pages/pessoa/Mensagens').then((m) =
 const CompletarPerfil = lazy(() =>
   import('./pages/profissional/CompletarPerfil').then((m) => ({ default: m.CompletarPerfil })),
 )
+const Hoje = lazy(() => import('./pages/profissional/Hoje').then((m) => ({ default: m.Hoje })))
+const Agenda = lazy(() => import('./pages/profissional/Agenda').then((m) => ({ default: m.Agenda })))
 const Pacientes = lazy(() => import('./pages/profissional/Pacientes').then((m) => ({ default: m.Pacientes })))
 const Comunidade = lazy(() => import('./pages/Comunidade').then((m) => ({ default: m.Comunidade })))
 const Registros = lazy(() => import('./pages/equipe/Registros').then((m) => ({ default: m.Registros })))
 
-// Mesma ordem de abas dos mockups.
+// Pessoa: quatro abas. Plano, rotina e profissionais ficam dentro de Acompanhamento.
 const PERSON_NAV: NavItem[] = [
   { to: '/inicio', label: 'Início', icon: House },
-  { to: '/saude', label: 'Saúde', icon: Heart },
-  { to: '/plano', label: 'Plano', icon: ClipboardList },
-  { to: '/rotina', label: 'Rotina', icon: CalendarDays },
   { to: '/comunidade', label: 'Comunidade', icon: UsersRound },
-  { to: '/progresso', label: 'Progresso', icon: ChartNoAxesColumn },
-  // No celular, mensagens e configurações abrem pelos ícones no topo do Início
-  // (como nos mockups, são 5 abas). "Meu perfil" fica dentro de Configurações.
+  {
+    to: '/acompanhamento',
+    label: 'Acompanhamento',
+    icon: Heart,
+    alsoActiveOn: ['/plano', '/rotina', '/saude'],
+  },
+  { to: '/progresso', label: 'Evolução', icon: ChartNoAxesColumn },
+  // No celular, mensagens e configurações abrem pelos ícones no topo do Início.
   { to: '/mensagens', label: 'Mensagens', icon: MessageSquare, desktopOnly: true, unreadFor: 'person' },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, desktopOnly: true },
 ]
 
+// Profissional: abre em Hoje, com quem espera retorno.
 const PRO_NAV: NavItem[] = [
-  { to: '/pro', label: 'Pacientes', icon: Users, end: true, alsoActiveOn: ['/pro/pacientes'] },
+  { to: '/pro', label: 'Hoje', icon: House, end: true },
+  { to: '/pro/clientes', label: 'Clientes', icon: Users, alsoActiveOn: ['/pro/pacientes'] },
+  { to: '/pro/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/pro/comunidade', label: 'Comunidade', icon: UsersRound },
-  { to: '/pro/mensagens', label: 'Mensagens', icon: MessageSquare, unreadFor: 'professional' },
-  // O perfil (dados, fotos e vídeos, avaliações) fica dentro de Configurações.
-  { to: '/pro/configuracoes', label: 'Ajustes', icon: Settings },
+  // No celular, as mensagens abrem pelo ícone no topo de Hoje.
+  { to: '/pro/mensagens', label: 'Mensagens', icon: MessageSquare, desktopOnly: true, unreadFor: 'professional' },
+  // Dados, oferta, fotos e avaliações ficam no perfil.
+  { to: '/pro/configuracoes', label: 'Perfil', icon: UserRound },
 ]
 
 // Equipe Skyro: só quem tem papel admin (dado por SQL).
@@ -118,6 +127,7 @@ export default function App() {
                 }
               >
                 <Route path="/inicio" element={<Inicio />} />
+                <Route path="/acompanhamento" element={<AcompanhamentoRedirect />} />
                 <Route path="/saude" element={<Saude />} />
                 <Route path="/saude/perto" element={<PertoDeVoce />} />
                 <Route path="/saude/comparar" element={<Comparar />} />
@@ -144,9 +154,10 @@ export default function App() {
                   </RequireRole>
                 }
               >
-                <Route path="/pro" element={<Pacientes />} />
+                <Route path="/pro" element={<Hoje />} />
+                <Route path="/pro/clientes" element={<Pacientes />} />
                 <Route path="/pro/pacientes/:id" element={<Paciente />} />
-                <Route path="/pro/agenda" element={<Navigate to="/pro" replace />} />
+                <Route path="/pro/agenda" element={<Agenda />} />
                 <Route path="/pro/comunidade" element={<Comunidade />} />
                 <Route path="/pro/mensagens" element={<MensagensPro />} />
                 <Route path="/pro/mensagens/:personId" element={<MensagensPro />} />

@@ -1,3 +1,4 @@
+import { AcompanhamentoTabs } from '../../components/AcompanhamentoTabs'
 import { CalendarDays, PlayCircle, Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -38,6 +39,7 @@ export function Plano() {
 
   return (
     <section className="space-y-4">
+      <AcompanhamentoTabs />
       <PageHeader title="Meu plano" subtitle="Tudo o que sua equipe preparou, num lugar só." />
 
       <div role="tablist" aria-label="Áreas do plano" className="grid grid-cols-4 gap-1 rounded-2xl bg-lavender-soft p-1">
