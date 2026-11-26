@@ -28,20 +28,20 @@ import {
 import { specialtyLabel } from '../lib/specialties'
 import { communityUrl } from '../lib/supabase'
 
-type Filter = CommunityTopic | 'todos'
-
-const FILTERS: { value: Filter; label: string }[] = [{ value: 'todos', label: 'Todos' }, ...TOPICS]
 
 /** Feed da Comunidade: pessoas e profissionais trocam dicas, fotos e incentivo. */
 export function Comunidade() {
-  const [filter, setFilter] = useState<Filter>('todos')
-  const feed = useFeed(filter === 'todos' ? null : filter)
+  // "Geral" mostra o feed inteiro; os outros temas filtram.
+  const [filter, setFilter] = useState<CommunityTopic>('geral')
+  const feed = useFeed(filter === 'geral' ? null : filter)
+  const posts = feed.data?.pages.flatMap((pg) => pg.posts) ?? []
+  const authors = new Map(feed.data?.pages.flatMap((pg) => [...pg.authors]) ?? [])
 
   return (
     <section className="space-y-4">
       <PageHeader title="Comunidade" subtitle="Troque experiências, dicas e conquistas com pessoas e profissionais." />
-      <Composer defaultTopic={filter === 'todos' ? 'geral' : filter} />
-      <ChipTabs options={FILTERS} value={filter} onChange={setFilter} label="Filtrar por tema" />
+      <Composer defaultTopic={filter} />
+      <ChipTabs options={TOPICS} value={filter} onChange={setFilter} label="Filtrar por tema" />
 
       {feed.isLoading ? (
         <div className="space-y-3">
@@ -50,18 +50,23 @@ export function Comunidade() {
         </div>
       ) : feed.error ? (
         <ErrorState message={feed.error.message} onRetry={() => feed.refetch()} />
-      ) : feed.data!.posts.length === 0 ? (
+      ) : posts.length === 0 ? (
         <div className="card text-center text-sm text-muted">
-          Ainda não tem nada {filter === 'todos' ? 'por aqui' : `em ${topicLabel(filter)}`}. Que tal começar a conversa?
+          Ainda não tem nada {filter === 'geral' ? 'por aqui' : `em ${topicLabel(filter)}`}. Que tal começar a conversa?
         </div>
       ) : (
         <ul className="space-y-3">
-          {feed.data!.posts.map((p) => (
+          {posts.map((p) => (
             <li key={p.id}>
-              <PostCard post={p} author={feed.data!.authors.get(p.authorId)} />
+              <PostCard post={p} author={authors.get(p.authorId)} />
             </li>
           ))}
         </ul>
+      )}
+      {feed.hasNextPage && (
+        <button className="btn-outline w-full" disabled={feed.isFetchingNextPage} onClick={() => feed.fetchNextPage()}>
+          {feed.isFetchingNextPage ? 'Carregando…' : 'Ver posts mais antigos'}
+        </button>
       )}
       <p className="text-xs text-muted">
         Dicas da comunidade não substituem a orientação do seu profissional. Em caso de urgência, ligue 192 (SAMU).
