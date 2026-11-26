@@ -39,6 +39,8 @@ const updateSW = registerSW({
 function applyUpdateIfSafe() {
   if (!updatePending || hasUnsavedText(document.querySelectorAll<HTMLInputElement>('input, textarea'))) return
   updatePending = false
+  // A aba aberta antes do service worker existir não recebe o reload do plugin: recarrega aqui
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true })
   void updateSW(true)
 }
 // Com rascunho na tela, tenta de novo depois (quando a pessoa já enviou ou apagou o texto)

@@ -29,6 +29,8 @@ export default defineConfig({
       workbox: {
         // Dados do Supabase nunca ficam em cache: só os arquivos do app.
         navigateFallbackDenylist: [/^\/auth\//],
+        // Já na primeira visita o service worker assume a aba, para ela receber as próximas versões
+        clientsClaim: true,
       },
     }),
   ],
