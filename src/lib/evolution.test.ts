@@ -11,9 +11,9 @@ const base: EvolutionSources = {
   meals: [{ date: '2026-11-25', title: 'Almoço', outcome: 'substituido', note: 'troquei o arroz' }],
   adjustments: [{ id: 'a1', date: '2026-11-22', kind: 'trocar_dia', status: 'aceito', proposal: 'Sábado às 9h' }],
   challenges: [
-    { id: 'c1', title: 'Semana 1', starts_on: '2026-11-16', ends_on: '2026-11-22', goal: 3, done: 3, left: false },
-    { id: 'c2', title: 'Semana 2', starts_on: '2026-11-23', ends_on: '2026-11-29', goal: 3, done: 1, left: false },
-    { id: 'c3', title: 'Semana 3', starts_on: '2026-11-30', ends_on: '2026-12-06', goal: 3, done: 0, left: false },
+    { id: 'c1', title: 'Semana 1', starts_on: '2026-11-16', ends_on: '2026-11-22', goal: 3, done: 3, leftOn: null },
+    { id: 'c2', title: 'Semana 2', starts_on: '2026-11-23', ends_on: '2026-11-29', goal: 3, done: 1, leftOn: null },
+    { id: 'c3', title: 'Semana 3', starts_on: '2026-11-30', ends_on: '2026-12-06', goal: 3, done: 0, leftOn: null },
   ],
 }
 
@@ -37,6 +37,13 @@ describe('linha do tempo da evolução', () => {
       ['Semana 2', TODAY, '1 de 3 treinos · em andamento'],
       ['Semana 1', '2026-11-22', '3 de 3 treinos · meta cumprida'],
     ])
+  })
+  it('quem saiu do desafio aparece no dia da saída', () => {
+    const left = buildTimeline(
+      { ...base, challenges: [{ ...base.challenges[0], leftOn: '2026-11-18' }] },
+      TODAY,
+    ).find((i) => i.kind === 'desafio')
+    expect(left).toMatchObject({ date: '2026-11-18', subtitle: 'Você saiu desta rodada' })
   })
   it('descreve refeição e ajuste', () => {
     expect(t.find((i) => i.kind === 'alimentacao')?.subtitle).toBe('Substituí · troquei o arroz')

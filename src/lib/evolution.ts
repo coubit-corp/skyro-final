@@ -50,7 +50,7 @@ export interface EvolutionSources {
   workoutDays: string[]
   meals: { date: string; title: string; outcome: string; note: string | null }[]
   adjustments: { id: string; date: string; kind: string; status: string; proposal: string | null }[]
-  challenges: { id: string; title: string; starts_on: string; ends_on: string; goal: number; done: number; left: boolean }[]
+  challenges: { id: string; title: string; starts_on: string; ends_on: string; goal: number; done: number; leftOn: string | null }[]
 }
 
 const kg = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
@@ -133,10 +133,10 @@ export function buildTimeline(s: EvolutionSources, todayIso: string): EvolutionI
     items.push({
       key: `c-${c.id}`,
       kind: 'desafio',
-      // Encerrado conta pela data em que terminou; em andamento, por hoje.
-      date: ended ? c.ends_on : todayIso,
+      // Quem saiu: o dia da saída. Encerrado: o dia em que terminou. Em andamento: hoje.
+      date: c.leftOn ?? (ended ? c.ends_on : todayIso),
       title: c.title,
-      subtitle: c.left
+      subtitle: c.leftOn
         ? 'Você saiu desta rodada'
         : `${c.done} de ${c.goal} ${c.goal === 1 ? 'treino' : 'treinos'} · ${
             c.done >= c.goal ? 'meta cumprida' : ended ? 'meta não cumprida' : 'em andamento'
