@@ -1,5 +1,6 @@
 import { Dumbbell, Flag, Salad, Target, Trash2, Trophy, Upload, type LucideIcon } from 'lucide-react'
 import { useId, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useAuth } from '../auth/auth-context'
 import { useAddMilestone, useDeleteHistoryEntry, useEvolution, useImportWorkouts } from '../hooks/useEvolution'
 import { todayBRT } from '../lib/dates'
 import {
@@ -30,6 +31,8 @@ const PAGE = 30
 export function EvolutionTimeline() {
   const todayIso = todayBRT()
   const evolution = useEvolution()
+  // A conta demo é pública: nada pessoal é gravado nela (o banco também recusa).
+  const demo = Boolean(useAuth().profile?.is_demo)
   const [kind, setKind] = useState<EvolutionKind | 'tudo'>('tudo')
   const [period, setPeriod] = useState<EvolutionPeriod>('30')
   const [shown, setShown] = useState(PAGE)
@@ -46,7 +49,12 @@ export function EvolutionTimeline() {
         <p className="text-sm text-muted">Treinos, refeições, ajustes e desafios, pela data em que aconteceram.</p>
       </div>
 
-      {evolution.data?.historyAvailable && (
+      {evolution.data?.historyAvailable && demo && (
+        <p className="text-sm text-muted">
+          Na conta de demonstração a história é só um exemplo. Crie sua conta para trazer seus treinos e marcos.
+        </p>
+      )}
+      {evolution.data?.historyAvailable && !demo && (
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-outline gap-2 px-4 py-2.5" onClick={() => setImportOpen(true)}>
             <Upload className="h-4 w-4" aria-hidden="true" /> Trazer meu histórico
@@ -90,7 +98,7 @@ export function EvolutionTimeline() {
         <>
           <ul className="card divide-y divide-line py-1">
             {items.slice(0, shown).map((i) => (
-              <TimelineRow key={i.key} item={i} todayIso={todayIso} />
+              <TimelineRow key={i.key} item={i} todayIso={todayIso} canDelete={!demo} />
             ))}
           </ul>
           {items.length > shown && (
@@ -107,7 +115,7 @@ export function EvolutionTimeline() {
   )
 }
 
-function TimelineRow({ item: i, todayIso }: { item: EvolutionItem; todayIso: string }) {
+function TimelineRow({ item: i, todayIso, canDelete }: { item: EvolutionItem; todayIso: string; canDelete: boolean }) {
   const remove = useDeleteHistoryEntry()
   const [confirming, setConfirming] = useState(false)
   const Icon = ICONS[i.kind]
@@ -141,7 +149,7 @@ function TimelineRow({ item: i, todayIso }: { item: EvolutionItem; todayIso: str
         )}
         {remove.isError && <p className="text-xs text-attention">Não deu para apagar. Tente de novo.</p>}
       </div>
-      {i.entryId && !confirming && (
+      {i.entryId && canDelete && !confirming && (
         <button
           type="button"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-chip hover:text-ink"

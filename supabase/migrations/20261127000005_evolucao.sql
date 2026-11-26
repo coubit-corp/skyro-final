@@ -8,7 +8,8 @@
 --      compartilhar esse histórico fica para uma próxima etapa.
 --   2. Repetir o mesmo arquivo não duplica: (person_id, source, source_key) é único.
 --   3. Guarda a origem (source) e a data original (occurred_on), nunca no futuro.
---   4. Não entra em desafio: os pontos da rodada vêm só de challenge_checkins.
+--   4. Conta demo (login público) só lê o histórico de exemplo do seed; não grava nem apaga.
+--   5. Não entra em desafio: os pontos da rodada vêm só de challenge_checkins.
 --
 -- Rodar no Supabase: SQL Editor → colar → Run (depois de 20261127000002_desafios.sql).
 -- Pode rodar mais de uma vez.
@@ -41,11 +42,11 @@ create policy "history_entries: leitura" on public.history_entries
 
 create policy "history_entries: criar" on public.history_entries
   for insert to authenticated
-  with check (person_id = auth.uid() and occurred_on <= public.today_brt());
+  with check (person_id = auth.uid() and occurred_on <= public.today_brt() and not public.viewer_is_demo());
 
 create policy "history_entries: apagar" on public.history_entries
   for delete to authenticated
-  using (person_id = auth.uid());
+  using (person_id = auth.uid() and not public.viewer_is_demo());
 
 revoke all on public.history_entries from anon, authenticated;
 grant select, delete on public.history_entries to authenticated;
