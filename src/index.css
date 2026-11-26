@@ -26,6 +26,8 @@
 
   /* Marca da Skyro no logo */
   --color-logo: #4c63b6;
+  --color-logo-dot: #8ea2e6;
+  --color-wordmark: #1c2a4d;
   /* barras do gráfico de sono abaixo da meta */
   --color-bar-low: #8ea2e6;
 }
@@ -37,30 +39,33 @@
  */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --color-surface: #0e1424;
-  --color-card: #182035;
-  --color-line: #2a3450;
-  --color-chip: #232d47;
-  --color-ink: #e6ebf7;
-  --color-muted: #9aa6c2;
+  /* preto neutro, com cartões em grafite para separar as áreas */
+  --color-surface: #000000;
+  --color-card: #111111;
+  --color-line: #262626;
+  --color-chip: #1c1c1c;
+  --color-ink: #f5f5f5;
+  --color-muted: #a3a3a3;
   /* azul mais claro para ler bem como texto e link sobre o fundo escuro */
   --color-primary: #9fb0ec;
   --color-primary-dark: #b4c2f2;
   --color-lavender: #7f93d8;
-  --color-lavender-soft: #26315a;
+  --color-lavender-soft: #1f2333;
   /* cartões de destaque (XP, strike, cabeçalhos) ficam um pouco acima do fundo */
-  --color-navy: #22305a;
-  --color-navy-soft: #2d3d6e;
+  --color-navy: #171717;
+  --color-navy-soft: #262626;
   --color-attention: #f0a07a;
-  --color-attention-soft: #4a2a1f;
-  --color-logo: #9fb0ec;
+  --color-attention-soft: #3a2119;
+  --color-logo: #ffffff;
+  --color-logo-dot: #ffffff;
+  --color-wordmark: #ffffff;
   --color-bar-low: #3f4f86;
 }
 
 /* No escuro, o azul de fundo é claro: o texto em cima dele fica escuro. */
 :root[data-theme='dark'] .bg-primary,
 :root[data-theme='dark'] .btn-primary {
-  color: #0e1424;
+  color: #000000;
 }
 
 @layer base {

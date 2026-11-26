@@ -6,7 +6,7 @@ export type ThemePref = 'claro' | 'escuro' | 'sistema'
 export type Theme = 'light' | 'dark'
 
 export const THEME_STORAGE_KEY = 'skyro-tema'
-export const DEFAULT_THEME_PREF: ThemePref = 'claro'
+export const DEFAULT_THEME_PREF: ThemePref = 'escuro'
 
 export const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'claro', label: 'Claro' },
@@ -15,7 +15,7 @@ export const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
 ]
 
 /** Cor da barra do navegador no celular, para combinar com o fundo. */
-const BROWSER_BAR: Record<Theme, string> = { light: '#1C2A4D', dark: '#0E1424' }
+const BROWSER_BAR: Record<Theme, string> = { light: '#1C2A4D', dark: '#000000' }
 
 export function parseThemePref(value: string | null | undefined): ThemePref {
   return value === 'claro' || value === 'escuro' || value === 'sistema' ? value : DEFAULT_THEME_PREF

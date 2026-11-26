@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Sua rotina acompanhada de verdade pelo profissional que cuida de você." />
-    <meta name="theme-color" content="#1C2A4D" />
+    <meta name="theme-color" content="#000000" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,7 +18,7 @@
       // Aplica o tema salvo antes de o app carregar (src/lib/theme.ts faz o mesmo depois).
       try {
         var t = localStorage.getItem('skyro-tema')
-        var dark = t === 'escuro' || (t === 'sistema' && matchMedia('(prefers-color-scheme: dark)').matches)
+        var dark = t === 'sistema' ? matchMedia('(prefers-color-scheme: dark)').matches : t !== 'claro'
         document.documentElement.dataset.theme = dark ? 'dark' : 'light'
       } catch (e) {}
     </script>
