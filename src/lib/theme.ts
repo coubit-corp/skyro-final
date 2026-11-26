@@ -15,7 +15,7 @@ export const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
 ]
 
 /** Cor da barra do navegador no celular, para combinar com o fundo. */
-const BROWSER_BAR: Record<Theme, string> = { light: '#1C2A4D', dark: '#000000' }
+const BROWSER_BAR: Record<Theme, string> = { light: '#f6f6f5', dark: '#000000' }
 
 export function parseThemePref(value: string | null | undefined): ThemePref {
   return value === 'claro' || value === 'escuro' || value === 'sistema' ? value : DEFAULT_THEME_PREF

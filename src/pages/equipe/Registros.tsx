@@ -72,7 +72,7 @@ export function Registros({ view }: { view: View }) {
 
       {view === 'pendentes' && registries.data && (
         <div className="flex items-center gap-4 rounded-card bg-navy px-5 py-4 text-white">
-          <span className="font-display text-4xl font-extrabold text-lavender">{pendingCount}</span>
+          <span className="font-display text-4xl font-bold text-lavender">{pendingCount}</span>
           <div>
             <p className="font-semibold">
               {pendingCount === 0

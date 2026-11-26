@@ -125,7 +125,7 @@ export function Inicio() {
       ) : (
         <div className="rounded-card bg-navy p-4 text-white">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold tracking-[0.12em] text-lavender uppercase">Strike</span>
+            <span className="font-semibold text-lavender">Strike</span>
             <span className="text-white/70">Recorde: {record} dias</span>
           </div>
           <p className="mt-1 font-display text-lg font-bold">

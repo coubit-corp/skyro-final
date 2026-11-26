@@ -329,7 +329,7 @@ export function RatingSummary({ rating, count, reviews }: { rating: number | nul
   return (
     <div className="flex items-center gap-5">
       <div className="text-center">
-        <p className="font-display text-4xl font-extrabold">{rating.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</p>
+        <p className="font-display text-4xl font-bold">{rating.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</p>
         <Stars value={rating} />
         <p className="mt-0.5 text-xs text-muted">{reviewsLabel(count)}</p>
       </div>
