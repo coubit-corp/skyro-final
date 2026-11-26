@@ -21,7 +21,8 @@ export function Comparar() {
   const withOffer = useMemo(
     () =>
       (pros.data ?? [])
-        .filter((p) => offers.data?.has(p.id))
+        // Recusado continua visível para quem já teve vínculo, mas não entra como opção de escolha.
+        .filter((p) => !p.rejection_reason && offers.data?.has(p.id))
         .sort((a, b) => a.profiles.full_name.localeCompare(b.profiles.full_name, 'pt-BR')),
     [pros.data, offers.data],
   )

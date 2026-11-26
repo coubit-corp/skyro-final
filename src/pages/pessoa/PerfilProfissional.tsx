@@ -122,7 +122,7 @@ export function PerfilProfissional() {
 
       <ExperienceCard pro={p} />
 
-      {offer && (
+      {offer && !p.rejection_reason && (
         <div className="card space-y-2">
           <h2 className="eyebrow">Como funciona o acompanhamento</h2>
           <OfferDetails offer={offer} />
