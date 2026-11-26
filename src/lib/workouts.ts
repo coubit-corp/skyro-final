@@ -327,9 +327,13 @@ export function finishWorkout(w: ActiveWorkout, now: number): FinishedWorkout | 
 
 type Workout = Pick<HistoryEntry, 'id' | 'occurred_on' | 'title' | 'details'>
 
-function setsOf(w: Workout, name: string): LoggedSet[] {
+function matching(w: Workout, name: string) {
   const key = normalizeName(name)
-  return (w.details?.exercises ?? []).filter((e) => normalizeName(e.name) === key).flatMap((e) => e.sets)
+  return (w.details?.exercises ?? []).filter((e) => normalizeName(e.name) === key)
+}
+
+function setsOf(w: Workout, name: string): LoggedSet[] {
+  return matching(w, name).flatMap((e) => e.sets)
 }
 
 /** Séries do treino mais recente que teve este exercício. `history` vem do mais novo para o mais antigo. */
@@ -352,7 +356,7 @@ export interface ExerciseStats {
   maxWeight: { kg: number; date: string } | null
   best1rm: { kg: number; date: string } | null
   bestSet: { kg: number; reps: number; date: string } | null
-  sessions: { id: string; date: string; title: string; sets: LoggedSet[] }[]
+  sessions: { id: string; date: string; title: string; sets: LoggedSet[]; note?: string }[]
 }
 
 export function exerciseStats(history: Workout[], name: string): ExerciseStats {
@@ -360,7 +364,11 @@ export function exerciseStats(history: Workout[], name: string): ExerciseStats {
   for (const w of history) {
     const sets = setsOf(w, name)
     if (!sets.length) continue
-    stats.sessions.push({ id: w.id, date: w.occurred_on, title: w.title, sets })
+    const note = matching(w, name)
+      .map((e) => (e as { note?: unknown }).note)
+      .filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+      .join(' · ')
+    stats.sessions.push({ id: w.id, date: w.occurred_on, title: w.title, sets, ...(note ? { note } : {}) })
     let maxKg = 0
     let best = 0
     for (const s of sets) {

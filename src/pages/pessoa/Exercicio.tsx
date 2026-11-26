@@ -68,6 +68,7 @@ export function Exercicio() {
                 <li key={s.id} className="card space-y-1 text-sm">
                   <p className="font-semibold break-words">{s.title}</p>
                   <p className="text-xs text-muted">{evolutionDate(s.date, todayIso)}</p>
+                  {s.note && <p className="pt-1 break-words">Nota: {s.note}</p>}
                   <ol className="pt-1 text-muted">
                     {s.sets.map((x, i) => (
                       <li key={i}>
