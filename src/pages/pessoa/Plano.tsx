@@ -1,6 +1,7 @@
 import { CalendarDays, PlayCircle, Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { AdjustmentCard } from '../../components/Adjustments'
 import { Avatar } from '../../components/Avatar'
 import { DemoBanner } from '../../components/DemoBanner'
 import { CheckButton, ErrorState, PageHeader, Skeleton } from '../../components/ui'
@@ -191,6 +192,7 @@ function ProPlan({ tab, proId, plan }: { tab: TabInfo; proId: string; plan: MyPl
           <WeekList items={items} />
         </>
       )}
+      {!ended && <AdjustmentCard proId={proId} proName={name} />}
     </article>
   )
 }

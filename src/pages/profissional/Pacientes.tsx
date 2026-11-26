@@ -2,6 +2,7 @@ import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/auth-context'
+import { PendingAdjustments } from '../../components/Adjustments'
 import { Avatar } from '../../components/Avatar'
 import { DemoBanner } from '../../components/DemoBanner'
 import { Logo } from '../../components/Logo'
@@ -133,6 +134,8 @@ export function Pacientes() {
           </div>
         )
       )}
+
+      {patients.data && <PendingAdjustments patients={patients.data} />}
 
       {patients.error ? (
         <ErrorState message={patients.error.message} onRetry={() => patients.refetch()} />
