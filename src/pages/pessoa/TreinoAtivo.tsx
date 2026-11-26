@@ -73,12 +73,7 @@ export function TreinoAtivo() {
   const conclude = () => {
     const done = finishWorkout(workout, Date.now())
     if (typeof done === 'string') return setError(done)
-    save.mutate(done, {
-      onSuccess: () => {
-        writeDraft(me, null)
-        navigate('/progresso')
-      },
-    })
+    save.mutate(done, { onSuccess: () => navigate('/progresso') })
   }
 
   return (

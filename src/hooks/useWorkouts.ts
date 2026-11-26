@@ -6,7 +6,7 @@ import { useAuth } from '../auth/auth-context'
 import { todayBRT } from '../lib/dates'
 import type { HistoryEntry } from '../lib/evolution'
 import { supabase } from '../lib/supabase'
-import type { FinishedWorkout, Routine, RoutineExercise } from '../lib/workouts'
+import { writeDraft, type FinishedWorkout, type Routine, type RoutineExercise } from '../lib/workouts'
 
 /** O banco ainda não tem a tabela (migration não aplicada)? */
 function isUnavailable(error: { message: string }): boolean {
@@ -97,15 +97,18 @@ export function useWorkoutHistory() {
   })
 }
 
-/** Grava o treino concluído no histórico, com a data de hoje. */
+/** Grava o treino concluído no histórico, com a data de hoje, e encerra o treino em andamento. */
 export function useSaveWorkout() {
   const qc = useQueryClient()
+  const me = useAuth().session?.user.id
   return useMutation({
     mutationFn: async (w: FinishedWorkout) => {
       const { error } = await supabase
         .from('history_entries')
         .insert({ kind: 'treino', occurred_on: todayBRT(), title: w.title, details: w.details, source: 'skyro' })
       if (error) throw new Error(friendly(error.message))
+      // Aqui, e não na tela: se a pessoa sair durante o envio, o rascunho não pode sobrar e duplicar o treino.
+      if (me) writeDraft(me, null)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['evolution'] }),
   })
