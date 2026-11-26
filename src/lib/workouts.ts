@@ -336,11 +336,14 @@ function setsOf(w: Workout, name: string): LoggedSet[] {
   return matching(w, name).flatMap((e) => e.sets)
 }
 
-/** Séries do treino mais recente que teve este exercício. `history` vem do mais novo para o mais antigo. */
-export function previousSets(history: Workout[], name: string): LoggedSet[] {
+/**
+ * Séries do treino mais recente que teve este exercício. `history` vem do mais novo para o mais antigo.
+ * `occurrence`: quando o treino repete o exercício, qual das vezes (0 = a primeira).
+ */
+export function previousSets(history: Workout[], name: string, occurrence = 0): LoggedSet[] {
   for (const w of history) {
-    const sets = setsOf(w, name)
-    if (sets.length) return sets
+    const found = matching(w, name)
+    if (found.length) return found[occurrence]?.sets ?? []
   }
   return []
 }

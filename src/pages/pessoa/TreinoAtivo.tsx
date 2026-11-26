@@ -12,6 +12,7 @@ import {
   MAX_ROUTINE_EXERCISES,
   MAX_SETS,
   muscleLabel,
+  normalizeName,
   previousSets,
   readDraft,
   recentExercises,
@@ -109,7 +110,9 @@ export function TreinoAtivo() {
       )}
 
       {workout.exercises.map((e, i) => {
-        const previous = previousSets(history.data ?? [], e.name)
+        const key = normalizeName(e.name)
+        const occurrence = workout.exercises.slice(0, i).filter((x) => normalizeName(x.name) === key).length
+        const previous = previousSets(history.data ?? [], e.name, occurrence)
         return (
           <article key={i} className="card space-y-3" aria-label={e.name}>
             <div className="flex items-start justify-between gap-2">
