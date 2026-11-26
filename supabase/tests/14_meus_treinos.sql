@@ -65,3 +65,10 @@ set role anon;
 \echo '-- anonimo nao le (deve FALHAR):'
 select count(*) from workout_routines;
 reset role;
+
+-- Demo não apaga os treinos de exemplo do seed.
+set role authenticated;
+select set_config('request.jwt.claims', '{"sub":"d0000000-0000-4000-8000-000000000001","role":"authenticated"}', false);
+delete from public.history_entries where source = 'skyro' and source_key like 'demo-skyro-%';
+select count(*) as exemplos_continuam_2 from public.history_entries where source = 'skyro' and source_key like 'demo-skyro-%';
+reset role;

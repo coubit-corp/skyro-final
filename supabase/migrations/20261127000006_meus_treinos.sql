@@ -85,4 +85,11 @@ create policy "history_entries: criar" on public.history_entries
 
 create policy "history_entries: apagar" on public.history_entries
   for delete to authenticated
-  using (person_id = auth.uid() and (source = 'skyro' or not public.viewer_is_demo()));
+  using (
+    person_id = auth.uid()
+    and (
+      not public.viewer_is_demo()
+      -- Demo (login público): só o treino que um visitante registrou; os exemplos do seed ficam.
+      or (source = 'skyro' and source_key not like 'demo-skyro-%')
+    )
+  );

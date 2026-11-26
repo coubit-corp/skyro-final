@@ -36,7 +36,7 @@ async function allHistory(me: string): Promise<Res<HistoryEntry>> {
   for (let page = 0; page < MAX_PAGES; page++) {
     const { data, error } = await supabase
       .from('history_entries')
-      .select('id, kind, occurred_on, title, details, source')
+      .select('id, kind, occurred_on, title, details, source, source_key')
       .eq('person_id', me)
       .order('occurred_on', { ascending: false })
       .order('id')
