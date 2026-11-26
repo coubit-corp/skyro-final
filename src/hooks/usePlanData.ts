@@ -3,7 +3,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/auth-context'
-import type { PlanCheck, PlanItem, PlanNote, ProfileBrief, Share, Specialty } from '../lib/database.types'
+import type { PlanCheck, PlanItem, PlanNote, PlanOutcome, ProfileBrief, Share, Specialty } from '../lib/database.types'
 import { addDays, today } from '../lib/dates'
 import type { toPlanItemRow } from '../lib/plan'
 import { PRO_PROFILE, supabase } from '../lib/supabase'
@@ -27,11 +27,13 @@ function useUserId(): string {
 
 // ------------------------------------------------------------------ pessoa
 
+export type TodayCheck = Pick<PlanCheck, 'outcome' | 'note'>
+
 export interface MyPlan {
   items: PersonPlanItem[]
   notes: PlanNote[]
-  /** Itens marcados hoje */
-  doneToday: Set<string>
+  /** Registros de hoje, por item */
+  checksToday: Map<string, TodayCheck>
   /** Todos os compartilhamentos (ativos e encerrados), um por profissional, o mais recente */
   shares: Map<string, ShareWithAuthor>
   painToday: number | null
@@ -50,7 +52,7 @@ export function useMyPlan() {
           .eq('person_id', userId)
           .order('position'),
         supabase.from('plan_notes').select('*').eq('person_id', userId),
-        supabase.from('plan_checks').select('item_id').eq('person_id', userId).eq('check_date', todayIso),
+        supabase.from('plan_checks').select('item_id, outcome, note').eq('person_id', userId).eq('check_date', todayIso),
         supabase
           .from('shares')
           .select(`*, professionals(specialty, ${PRO_PROFILE})`)
@@ -67,7 +69,9 @@ export function useMyPlan() {
       return {
         items: unwrap<PersonPlanItem[]>(items),
         notes: unwrap<PlanNote[]>(notes),
-        doneToday: new Set(unwrap<{ item_id: string }[]>(checks).map((c) => c.item_id)),
+        checksToday: new Map(
+          unwrap<(TodayCheck & { item_id: string })[]>(checks).map(({ item_id, ...c }) => [item_id, c]),
+        ),
         shares: byPro,
         painToday: unwrap<{ pain_level: number | null } | null>(log)?.pain_level ?? null,
       }
@@ -75,17 +79,29 @@ export function useMyPlan() {
   })
 }
 
-export function useTogglePlanCheck() {
+/** Registra o item de hoje (outcome null apaga o registro). */
+export function useSetPlanCheck() {
   const userId = useUserId()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ itemId, done }: { itemId: string; done: boolean }) => {
+    mutationFn: async ({
+      itemId,
+      outcome,
+      note = null,
+    }: {
+      itemId: string
+      outcome: PlanOutcome | null
+      note?: string | null
+    }) => {
       const date = today()
-      if (done) {
+      if (outcome) {
         unwrap(
           await supabase
             .from('plan_checks')
-            .upsert({ item_id: itemId, person_id: userId, check_date: date }, { onConflict: 'item_id,check_date' }),
+            .upsert(
+              { item_id: itemId, person_id: userId, check_date: date, outcome, note: note?.trim() || null },
+              { onConflict: 'item_id,check_date' },
+            ),
         )
       } else {
         unwrap(await supabase.from('plan_checks').delete().eq('item_id', itemId).eq('check_date', date))
@@ -119,7 +135,7 @@ export interface PatientPlan {
   items: PlanItem[]
   note: PlanNote | null
   /** Marcações dos últimos 8 dias (para a adesão da semana) */
-  checks: Pick<PlanCheck, 'item_id' | 'check_date'>[]
+  checks: Pick<PlanCheck, 'item_id' | 'check_date' | 'outcome' | 'note'>[]
 }
 
 export function usePatientPlan(personId: string | undefined) {
@@ -133,14 +149,14 @@ export function usePatientPlan(personId: string | undefined) {
         supabase.from('plan_notes').select('*').eq('professional_id', proId).eq('person_id', personId!).maybeSingle(),
         supabase
           .from('plan_checks')
-          .select('item_id, check_date')
+          .select('item_id, check_date, outcome, note')
           .eq('person_id', personId!)
           .gte('check_date', addDays(today(), -8)),
       ])
       return {
         items: unwrap<PlanItem[]>(items),
         note: unwrap<PlanNote | null>(note),
-        checks: unwrap<Pick<PlanCheck, 'item_id' | 'check_date'>[]>(checks),
+        checks: unwrap<PatientPlan['checks']>(checks),
       }
     },
   })

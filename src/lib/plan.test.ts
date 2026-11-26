@@ -78,6 +78,14 @@ describe('adesão da semana', () => {
     ]
     expect(adherence(items, checks, days)).toEqual({ done: 2, planned: 5 })
   })
+  it('"não consegui" fica registrado mas não conta como feito', () => {
+    const items = [item({ id: 'a', weekdays: [1, 2, 3, 4, 5, 6, 7], created_at: '2026-11-01T12:00:00Z' })]
+    const checks = [
+      { item_id: 'a', check_date: '2026-11-09', outcome: 'substituido' as const },
+      { item_id: 'a', check_date: '2026-11-10', outcome: 'nao_consegui' as const },
+    ]
+    expect(adherence(items, checks, ['2026-11-09', '2026-11-10'])).toEqual({ done: 1, planned: 2 })
+  })
   it('item novo não cobra os dias antes de existir', () => {
     const items = [item({ id: 'novo', weekdays: [1, 2, 3, 4, 5, 6, 7], created_at: '2026-11-11T15:00:00Z' })]
     expect(adherence(items, [], ['2026-11-09', '2026-11-10', '2026-11-11'])).toEqual({ done: 0, planned: 1 })

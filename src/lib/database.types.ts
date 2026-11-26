@@ -187,11 +187,15 @@ export interface PlanNote {
   updated_at: string
 }
 
+export type PlanOutcome = 'feito' | 'substituido' | 'nao_consegui'
+
 export interface PlanCheck {
   item_id: string
   person_id: string
   check_date: string
   created_at: string
+  outcome: PlanOutcome
+  note: string | null
 }
 
 /** Mensagem entre a pessoa e um profissional com compartilhamento ativo. */

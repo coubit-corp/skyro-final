@@ -50,3 +50,22 @@ export function attentionSummary(counts: Record<PatientGroup, number>): {
       : 'sono curto, treinos perdidos ou pouca água',
   }
 }
+
+export type NextAction = 'conversar' | 'revisar_plano' | 'acompanhar'
+
+export const NEXT_ACTION_LABEL: Record<NextAction, string> = {
+  conversar: 'Conversar',
+  revisar_plano: 'Revisar plano',
+  acompanhar: 'Acompanhar',
+}
+
+/**
+ * Próxima ação sugerida para o profissional. Treinos perdidos em sequência
+ * pedem revisar o plano; sono, água ou falta de registro pedem uma conversa.
+ */
+export function nextAction(evaluation: Pick<PatientStatus, 'alerts'>): NextAction {
+  const kinds = evaluation.alerts.map((a) => a.kind)
+  if (kinds.includes('treino')) return 'revisar_plano'
+  if (kinds.length > 0) return 'conversar'
+  return 'acompanhar'
+}

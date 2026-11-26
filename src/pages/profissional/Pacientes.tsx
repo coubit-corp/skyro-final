@@ -9,7 +9,14 @@ import { SignOutButton } from '../../components/SignOutButton'
 import { ErrorState, Skeleton } from '../../components/ui'
 import { useMyProfessional, usePatients, type PatientRow } from '../../hooks/useProData'
 import { formatHours } from '../../lib/dates'
-import { attentionSummary, groupOf, groupPatients, type PatientGroup } from '../../lib/patientGroups'
+import {
+  attentionSummary,
+  groupOf,
+  groupPatients,
+  NEXT_ACTION_LABEL,
+  nextAction,
+  type PatientGroup,
+} from '../../lib/patientGroups'
 import { specialtyLabel } from '../../lib/specialties'
 
 /** Frase curta de cada paciente: o motivo do alerta ou como ele está. */
@@ -51,6 +58,7 @@ function PatientCard({ p }: { p: PatientRow }) {
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{p.name}</p>
           <p className="line-clamp-2 text-sm text-muted">{summaryLine(p)}</p>
+          <p className="mt-0.5 text-xs font-semibold text-primary">Próxima ação: {NEXT_ACTION_LABEL[nextAction(p.evaluation)]}</p>
         </div>
         <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>
           {badge.label}

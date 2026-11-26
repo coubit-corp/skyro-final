@@ -1,14 +1,24 @@
 import { CalendarDays, PlayCircle, Search } from 'lucide-react'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Avatar } from '../../components/Avatar'
 import { DemoBanner } from '../../components/DemoBanner'
 import { CheckButton, ErrorState, PageHeader, Skeleton } from '../../components/ui'
-import { useMyPlan, useSetPain, useTogglePlanCheck, type MyPlan, type PersonPlanItem } from '../../hooks/usePlanData'
+import {
+  useMyPlan,
+  useSetPain,
+  useSetPlanCheck,
+  type MyPlan,
+  type PersonPlanItem,
+  type TodayCheck,
+} from '../../hooks/usePlanData'
+import type { PlanOutcome } from '../../lib/database.types'
 import { today } from '../../lib/dates'
 import {
+  CHECK_NOTE_MAX,
   dayHeadline,
   itemDetail,
+  OUTCOME_LABEL,
   itemsForDay,
   PAIN_LEVELS,
   PLAN_TABS,
@@ -92,12 +102,41 @@ function TabContent({ tab, plan }: { tab: TabInfo; plan: MyPlan }) {
       </div>
     )
   }
+  const hasItems = (id: string) => plan.items.some((i) => i.professional_id === id && i.kind === tab.kind)
+  const waiting = pros.filter((id) => !hasItems(id))
   return (
     <>
-      {pros.map((proId) => (
+      {pros.filter(hasItems).map((proId) => (
         <ProPlan key={proId} tab={tab} proId={proId} plan={plan} />
       ))}
+      {waiting.length > 0 && <WaitingPros proIds={waiting} plan={plan} />}
     </>
+  )
+}
+
+/** Profissionais que ainda não montaram o plano: um cartão compacto no fim, sem ocupar o lugar dos planos prontos. */
+function WaitingPros({ proIds, plan }: { proIds: string[]; plan: MyPlan }) {
+  return (
+    <section className="card space-y-3" aria-label="Aguardando seu profissional">
+      <h2 className="eyebrow">Aguardando seu profissional</h2>
+      <ul className="space-y-2">
+        {proIds.map((id) => {
+          const pro = plan.shares.get(id)?.professionals
+          const name = pro?.profiles.full_name ?? 'Seu profissional'
+          const first = name.split(' ')[0]
+          const note = plan.notes.find((n) => n.professional_id === id)
+          return (
+            <li key={id} className="flex items-start gap-3">
+              <Avatar seed={pro?.profiles.avatar_seed} photo={pro?.profiles.avatar_path} name={name} size={36} />
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="font-semibold">{first} ainda não montou seu plano</p>
+                {note && <p className="text-muted">Recado: {note.note}</p>}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
@@ -143,7 +182,7 @@ function ProPlan({ tab, proId, plan }: { tab: TabInfo; proId: string; plan: MyPl
           {todayItems.length > 0 ? (
             <ul className="card divide-y divide-line py-1">
               {todayItems.map((i) => (
-                <PlanRow key={i.id} item={i} done={plan.doneToday.has(i.id)} readOnly={ended} />
+                <PlanRow key={i.id} item={i} check={plan.checksToday.get(i.id)} readOnly={ended} />
               ))}
             </ul>
           ) : (
@@ -156,8 +195,101 @@ function ProPlan({ tab, proId, plan }: { tab: TabInfo; proId: string; plan: MyPl
   )
 }
 
-function PlanRow({ item, done, readOnly }: { item: PersonPlanItem; done: boolean; readOnly: boolean }) {
-  const toggle = useTogglePlanCheck()
+function PlanRow({ item, check, readOnly }: { item: PersonPlanItem; check?: TodayCheck; readOnly: boolean }) {
+  if (item.kind === 'refeicao') return <MealRow item={item} check={check} readOnly={readOnly} />
+  return <CheckRow item={item} done={Boolean(check)} readOnly={readOnly} />
+}
+
+const OUTCOMES: PlanOutcome[] = ['feito', 'substituido', 'nao_consegui']
+
+/** Refeição: registra o que a pessoa realmente comeu, não só "feito". */
+function MealRow({ item, check, readOnly }: { item: PersonPlanItem; check?: TodayCheck; readOnly: boolean }) {
+  const save = useSetPlanCheck()
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [note, setNote] = useState(check?.note ?? '')
+  const noteId = useId()
+  const detail = itemDetail(item)
+  const outcome = check?.outcome ?? null
+
+  function choose(next: PlanOutcome) {
+    if (next === outcome) {
+      save.mutate({ itemId: item.id, outcome: null })
+      setNoteOpen(false)
+      setNote('')
+      return
+    }
+    save.mutate({ itemId: item.id, outcome: next, note: next === 'feito' ? null : note })
+    setNoteOpen(next !== 'feito')
+  }
+
+  return (
+    <li className="space-y-2 py-3">
+      <div className="min-w-0">
+        <p className="font-semibold">{item.title}</p>
+        {detail && <p className="text-sm text-muted">{detail}</p>}
+        {item.notes && <p className="text-xs text-muted">{item.notes}</p>}
+      </div>
+      {readOnly ? (
+        outcome && <p className="text-sm text-muted">Hoje: {OUTCOME_LABEL[outcome]}</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={`${item.title}: como foi hoje`}>
+            {OUTCOMES.map((o) => (
+              <button
+                key={o}
+                type="button"
+                aria-pressed={outcome === o}
+                disabled={save.isPending}
+                onClick={() => choose(o)}
+                className={`min-h-11 rounded-full px-3 text-sm font-semibold ${
+                  outcome === o ? 'bg-primary text-white' : 'bg-chip text-ink'
+                }`}
+              >
+                {OUTCOME_LABEL[o]}
+              </button>
+            ))}
+          </div>
+          {outcome && outcome !== 'feito' && !noteOpen && check?.note && (
+            <p className="text-sm text-muted">
+              “{check.note}”{' '}
+              <button type="button" className="font-semibold text-primary" onClick={() => setNoteOpen(true)}>
+                Editar
+              </button>
+            </p>
+          )}
+          {outcome && outcome !== 'feito' && (noteOpen || !check?.note) && (
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                save.mutate({ itemId: item.id, outcome, note })
+                setNoteOpen(false)
+              }}
+            >
+              <label htmlFor={noteId} className="sr-only">
+                {outcome === 'substituido' ? 'O que você comeu no lugar' : 'O que aconteceu'}
+              </label>
+              <input
+                id={noteId}
+                className="input min-w-0 flex-1"
+                maxLength={CHECK_NOTE_MAX}
+                placeholder={outcome === 'substituido' ? 'O que você comeu no lugar? (opcional)' : 'O que aconteceu? (opcional)'}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <button type="submit" className="btn-outline shrink-0 px-4" disabled={save.isPending}>
+                Salvar
+              </button>
+            </form>
+          )}
+        </>
+      )}
+    </li>
+  )
+}
+
+function CheckRow({ item, done, readOnly }: { item: PersonPlanItem; done: boolean; readOnly: boolean }) {
+  const toggle = useSetPlanCheck()
   const detail = itemDetail(item)
   return (
     <li className="flex items-center gap-3 py-3">
@@ -169,7 +301,7 @@ function PlanRow({ item, done, readOnly }: { item: PersonPlanItem; done: boolean
             checked={done}
             label={`${item.title}: feito hoje`}
             disabled={toggle.isPending}
-            onChange={(next) => toggle.mutate({ itemId: item.id, done: next })}
+            onChange={(next) => toggle.mutate({ itemId: item.id, outcome: next ? 'feito' : null })}
           />
         </span>
       )}

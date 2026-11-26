@@ -65,28 +65,6 @@ export function Progresso() {
         </div>
       ) : (
         <>
-          {/* XP e nível */}
-          <div className="rounded-card bg-navy p-5 text-white">
-            <p className="text-xs font-semibold tracking-[0.12em] text-lavender uppercase">Seu XP</p>
-            <p className="mt-1 font-display text-4xl font-extrabold">{xpFormat.format(data.xp)} XP</p>
-            <p className="mt-1 text-sm text-white/80">
-              Nível {data.level.current.name}
-              {data.level.next
-                ? ` · faltam ${xpFormat.format(data.level.missing)} para o ${data.level.next.name}`
-                : ' · nível máximo'}
-            </p>
-            <div
-              className="mt-4 h-2 rounded-full bg-white/15"
-              role="progressbar"
-              aria-label={data.level.next ? `Progresso até o nível ${data.level.next.name}` : 'Nível máximo'}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(data.level.progress * 100)}
-            >
-              <div className="h-2 rounded-full bg-lavender" style={{ width: `${Math.round(data.level.progress * 100)}%` }} />
-            </div>
-          </div>
-
           {/* Score e strike */}
           <div className="grid grid-cols-2 gap-3">
             <Link to="/progresso/semana" className="card block transition hover:ring-2 hover:ring-lavender">
@@ -106,6 +84,31 @@ export function Progresso() {
                 {data.streak} {data.streak === 1 ? 'dia' : 'dias'}
               </p>
               <p className="mt-1 text-xs text-muted">seguidos com hábito marcado</p>
+            </div>
+          </div>
+
+          {/* Sono na semana */}
+          <SleepChart days={data.sleep} />
+
+          {/* XP e nível */}
+          <div className="rounded-card bg-navy p-5 text-white">
+            <p className="text-xs font-semibold tracking-[0.12em] text-lavender uppercase">Seu XP</p>
+            <p className="mt-1 font-display text-4xl font-extrabold">{xpFormat.format(data.xp)} XP</p>
+            <p className="mt-1 text-sm text-white/80">
+              Nível {data.level.current.name}
+              {data.level.next
+                ? ` · faltam ${xpFormat.format(data.level.missing)} para o ${data.level.next.name}`
+                : ' · nível máximo'}
+            </p>
+            <div
+              className="mt-4 h-2 rounded-full bg-white/15"
+              role="progressbar"
+              aria-label={data.level.next ? `Progresso até o nível ${data.level.next.name}` : 'Nível máximo'}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(data.level.progress * 100)}
+            >
+              <div className="h-2 rounded-full bg-lavender" style={{ width: `${Math.round(data.level.progress * 100)}%` }} />
             </div>
           </div>
 
@@ -132,8 +135,6 @@ export function Progresso() {
             </ul>
           </div>
 
-          {/* Sono na semana */}
-          <SleepChart days={data.sleep} />
 
           <details className="card text-sm">
             <summary className="tap cursor-pointer font-semibold text-primary">Como ganhar XP</summary>
