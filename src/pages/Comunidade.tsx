@@ -1,9 +1,12 @@
 import { BadgeCheck, Flag, Heart, ImagePlus, MessageCircle, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/auth-context'
 import { Avatar } from '../components/Avatar'
+import { ChallengesSection } from '../components/Challenges'
 import { DemoBanner } from '../components/DemoBanner'
 import { ChipTabs, ErrorState, Modal, PageHeader, Skeleton } from '../components/ui'
+import { useChallenges } from '../hooks/useChallenges'
 import {
   useAddComment,
   useComments,
@@ -25,6 +28,7 @@ import {
   type CommunityPost,
   type CommunityTopic,
 } from '../lib/community'
+import { clearInvite } from '../lib/invite'
 import { specialtyLabel } from '../lib/specialties'
 import { communityUrl } from '../lib/supabase'
 
@@ -36,10 +40,20 @@ export function Comunidade() {
   const feed = useFeed(filter === 'geral' ? null : filter)
   const posts = feed.data?.pages.flatMap((pg) => pg.posts) ?? []
   const authors = new Map(feed.data?.pages.flatMap((pg) => [...pg.authors]) ?? [])
+  // ?desafio=<id>: desafio aberto pelo link de convite ou pelo post que o anuncia
+  const [params, setParams] = useSearchParams()
+  const focusId = params.get('desafio')
+  const challenges = useChallenges()
+  const challengeByPost = new Map(
+    (challenges.data?.challenges ?? []).flatMap((c) => c.postIds.map((postId) => [postId, c.id] as const)),
+  )
+  // O convite guardado antes do login já trouxe a pessoa até aqui
+  useEffect(() => clearInvite(), [])
 
   return (
     <section className="space-y-4">
       <PageHeader title="Comunidade" subtitle="Troque experiências, dicas e conquistas com pessoas e profissionais." />
+      <ChallengesSection focusId={focusId} />
       <Composer defaultTopic={filter} />
       <ChipTabs options={TOPICS} value={filter} onChange={setFilter} label="Filtrar por tema" />
 
@@ -58,7 +72,13 @@ export function Comunidade() {
         <ul className="space-y-3">
           {posts.map((p) => (
             <li key={p.id}>
-              <PostCard post={p} author={authors.get(p.authorId)} />
+              <PostCard
+                post={p}
+                author={authors.get(p.authorId)}
+                onOpenChallenge={
+                  challengeByPost.has(p.id) ? () => setParams({ desafio: challengeByPost.get(p.id)! }) : undefined
+                }
+              />
             </li>
           ))}
         </ul>
@@ -206,7 +226,16 @@ function Composer({ defaultTopic }: { defaultTopic: CommunityTopic }) {
   )
 }
 
-function PostCard({ post, author }: { post: CommunityPost; author?: CommunityAuthor }) {
+function PostCard({
+  post,
+  author,
+  onOpenChallenge,
+}: {
+  post: CommunityPost
+  author?: CommunityAuthor
+  /** O post anuncia um desafio: abre o cartão dele */
+  onOpenChallenge?: () => void
+}) {
   const { session } = useAuth()
   const me = session?.user.id
   const mine = post.authorId === me
@@ -258,6 +287,12 @@ function PostCard({ post, author }: { post: CommunityPost; author?: CommunityAut
             </button>
           ))}
         </div>
+      )}
+
+      {onOpenChallenge && (
+        <button className="btn-primary w-full py-2" onClick={onOpenChallenge}>
+          Entrar no desafio
+        </button>
       )}
 
       {report.isSuccess && <p className="text-xs text-muted">Obrigado. A Equipe Skyro vai analisar este post.</p>}
