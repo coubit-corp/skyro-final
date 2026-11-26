@@ -5,11 +5,13 @@ import { useAuth } from '../../auth/auth-context'
 import { AccountSection } from '../../components/AccountSection'
 import { AvailabilityEditor } from '../../components/AvailabilityEditor'
 import { Avatar } from '../../components/Avatar'
+import { OfferDetails, OfferEditor } from '../../components/Offer'
 import { ProfessionalForm } from '../../components/ProfessionalForm'
 import { ExperienceCard, ReviewItem, RatingSummary, SocialButtons } from '../../components/Showcase'
 import { ShowcaseEditor } from '../../components/ShowcaseEditor'
 import { ErrorState, Skeleton } from '../../components/ui'
 import { useMyPhone, useSaveAccount } from '../../hooks/useAccount'
+import { useOffers } from '../../hooks/useOffers'
 import { useMyProfessional, useSaveProfessional } from '../../hooks/useProData'
 import { useProReviews } from '../../hooks/useShowcase'
 import { initialValues, toProfessionalRow } from '../../lib/professionalForm'
@@ -51,6 +53,8 @@ export function MeuPerfil() {
   const reviews = useProReviews(session?.user.id, Boolean(me.data && acceptsReviews(me.data.specialty)))
   const location = useLocation()
   const [editing, setEditing] = useState(false)
+  const offers = useOffers()
+  const [offerOpen, setOfferOpen] = useState(false)
   const [savedMsg, setSavedMsg] = useState<string | null>(
     (location.state as { justCreated?: boolean } | null)?.justCreated
       ? 'Perfil publicado! Você já aparece no “Perto de você”.'
@@ -60,6 +64,7 @@ export function MeuPerfil() {
   if (me.isLoading || phone.isLoading) return <Skeleton className="h-96" />
   if (me.error || !me.data) return <ErrorState message={me.error?.message} onRetry={() => me.refetch()} />
   const p = me.data
+  const myOffer = offers.data?.get(p.id)
   const name = profile?.full_name ?? ''
   const status = verificationStatus(p)
   const demo = Boolean(profile?.is_demo)
@@ -276,6 +281,26 @@ export function MeuPerfil() {
           </p>
         )}
       </div>
+
+      {offers.data && (
+        <div className="card space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="eyebrow">Sua oferta de acompanhamento</h2>
+            <button type="button" className="min-h-11 text-sm font-semibold text-primary" onClick={() => setOfferOpen(true)}>
+              {myOffer ? 'Editar' : 'Preencher'}
+            </button>
+          </div>
+          {myOffer ? (
+            <OfferDetails offer={myOffer} />
+          ) : (
+            <p className="text-sm text-muted">
+              Diga a mensalidade, os encontros, de quanto em quanto tempo você revisa o plano e em quanto tempo responde.
+              É isso que a pessoa compara antes de escolher.
+            </p>
+          )}
+          {offerOpen && <OfferEditor offer={myOffer ?? null} onClose={() => setOfferOpen(false)} />}
+        </div>
+      )}
 
       <div className="card space-y-2">
         <h2 className="eyebrow">Horários de atendimento</h2>

@@ -3,10 +3,12 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Avatar } from '../../components/Avatar'
 import { DemoBanner } from '../../components/DemoBanner'
+import { OfferDetails } from '../../components/Offer'
 import { Rating } from '../../components/ProCard'
 import { ExperienceCard, MediaGrid, RatingSummary, ReviewForm, ReviewItem, SocialButtons } from '../../components/Showcase'
 import { ErrorState, Modal, Skeleton } from '../../components/ui'
 import { useGeolocation } from '../../hooks/useGeolocation'
+import { useOffers } from '../../hooks/useOffers'
 import { useMyTeam, useProfessional, useRevokeShare, useShareRoutine } from '../../hooks/usePersonData'
 import { useCanReview, useDeleteReview, useProMedia, useProReviews, useSaveReview } from '../../hooks/useShowcase'
 import { useAuth } from '../../auth/auth-context'
@@ -20,6 +22,7 @@ export function PerfilProfissional() {
   const navigate = useNavigate()
   const pro = useProfessional(id)
   const team = useMyTeam()
+  const offers = useOffers()
   const geo = useGeolocation()
   const share = useShareRoutine()
   const revoke = useRevokeShare()
@@ -58,6 +61,7 @@ export function PerfilProfissional() {
   const activeShare = team.data?.find((s) => s.professional_id === p.id)
   const km = p.lat != null && p.lng != null ? distanceKm(geo.position, { lat: p.lat, lng: p.lng }) : null
   const firstName = p.profiles.full_name.split(' ')[0]
+  const offer = offers.data?.get(p.id)
   const hours = availabilityLines(p.availability)
   const myReview = reviews.data?.find((r) => r.person_id === session?.user.id)
   const closeReview = () => {
@@ -117,6 +121,16 @@ export function PerfilProfissional() {
       </div>
 
       <ExperienceCard pro={p} />
+
+      {offer && (
+        <div className="card space-y-2">
+          <h2 className="eyebrow">Como funciona o acompanhamento</h2>
+          <OfferDetails offer={offer} />
+          <Link to={`/saude/comparar?especialidade=${p.specialty}&ids=${p.id}`} className="btn-outline w-full sm:w-auto">
+            Comparar com outros profissionais
+          </Link>
+        </div>
+      )}
 
       <SocialButtons links={p.social_links ?? {}} firstName={firstName} />
 
