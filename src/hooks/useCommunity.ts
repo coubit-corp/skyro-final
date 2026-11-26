@@ -19,7 +19,7 @@ function useMe() {
   return session?.user.id
 }
 
-async function fetchAuthors(ids: string[]): Promise<Map<string, CommunityAuthor>> {
+export async function fetchAuthors(ids: string[]): Promise<Map<string, CommunityAuthor>> {
   if (ids.length === 0) return new Map()
   const { data, error } = await supabase.from('community_authors').select('*').in('id', ids)
   fail(error)

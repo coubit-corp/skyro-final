@@ -5,6 +5,7 @@ import { homeFor } from '../auth/home'
 import { Logo } from '../components/Logo'
 import type { Role } from '../lib/database.types'
 import { DEMO_ACCOUNTS } from '../lib/demo'
+import { pendingInvitePath } from '../lib/invite'
 import { supabase } from '../lib/supabase'
 
 type Mode = 'entrar' | 'cadastrar'
@@ -30,7 +31,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
 
-  if (session && profile) return <Navigate to={homeFor(profile.role)} replace />
+  if (session && profile) return <Navigate to={pendingInvitePath(profile.role) ?? homeFor(profile.role)} replace />
 
   async function signIn(mail: string, pass: string) {
     setBusy(true)

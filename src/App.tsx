@@ -22,9 +22,11 @@ import { RequireRole } from './auth/RequireRole'
 import { AppLayout } from './components/AppLayout'
 import type { NavItem } from './components/BottomNav'
 import { FullScreenLoader } from './components/FullScreenLoader'
+import { pendingInvitePath } from './lib/invite'
 import { supabaseConfigured } from './lib/supabase'
 import { Configuracoes } from './pages/Configuracoes'
 import { ConfigMissing } from './pages/ConfigMissing'
+import { Convite } from './pages/Convite'
 import { Login } from './pages/Login'
 import { NotFound } from './pages/NotFound'
 
@@ -90,7 +92,7 @@ function RootRedirect() {
   const { session, profile, loading } = useAuth()
   if (loading) return <FullScreenLoader />
   if (!session) return <Navigate to="/entrar" replace />
-  return <Navigate to={profile ? homeFor(profile.role) : '/entrar'} replace />
+  return <Navigate to={profile ? (pendingInvitePath(profile.role) ?? homeFor(profile.role)) : '/entrar'} replace />
 }
 
 export default function App() {
@@ -104,6 +106,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/entrar" element={<Login />} />
+              <Route path="/convite/:id" element={<Convite />} />
 
               {/* App da pessoa */}
               <Route
