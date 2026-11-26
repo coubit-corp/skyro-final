@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Alert } from './alerts'
-import { attentionSummary, groupOf, groupPatients } from './patientGroups'
+import { attentionSummary, groupOf, groupPatients, nextAction } from './patientGroups'
 
 const alert = (kind: Alert['kind']): Alert => ({ kind, message: kind })
 const atencao = (...kinds: Alert['kind'][]) => ({ status: 'atencao' as const, alerts: kinds.map(alert) })
@@ -62,5 +62,22 @@ describe('attentionSummary', () => {
 
   it('singular', () => {
     expect(attentionSummary({ atencao: 1, sem_registro: 0, em_dia: 0 }).title).toBe('paciente precisa de atenção hoje')
+  })
+})
+
+describe('nextAction', () => {
+  it('treinos perdidos pedem revisar o plano', () => {
+    expect(nextAction(atencao('treino'))).toBe('revisar_plano')
+    expect(nextAction(atencao('sono', 'treino'))).toBe('revisar_plano')
+  })
+
+  it('sono, água ou falta de registro pedem conversa', () => {
+    expect(nextAction(atencao('sono'))).toBe('conversar')
+    expect(nextAction(atencao('agua'))).toBe('conversar')
+    expect(nextAction(atencao('sem_registro'))).toBe('conversar')
+  })
+
+  it('sem alerta, só acompanhar', () => {
+    expect(nextAction(emDia)).toBe('acompanhar')
   })
 })

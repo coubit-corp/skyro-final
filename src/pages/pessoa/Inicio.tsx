@@ -128,7 +128,7 @@ export function Inicio() {
             <span className="font-semibold tracking-[0.12em] text-lavender uppercase">Strike</span>
             <span className="text-white/70">Recorde: {record} dias</span>
           </div>
-          <p className="mt-1 font-display text-2xl font-extrabold">
+          <p className="mt-1 font-display text-lg font-bold">
             {streak === 0 ? 'Sua sequência começa hoje' : `${streak} ${streak === 1 ? 'dia seguido' : 'dias seguidos'}`}
           </p>
           <div className="mt-3 flex gap-2" aria-label="Últimos 7 dias">

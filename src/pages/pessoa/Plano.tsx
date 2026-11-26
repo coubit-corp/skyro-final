@@ -92,12 +92,41 @@ function TabContent({ tab, plan }: { tab: TabInfo; plan: MyPlan }) {
       </div>
     )
   }
+  const hasItems = (id: string) => plan.items.some((i) => i.professional_id === id && i.kind === tab.kind)
+  const waiting = pros.filter((id) => !hasItems(id))
   return (
     <>
-      {pros.map((proId) => (
+      {pros.filter(hasItems).map((proId) => (
         <ProPlan key={proId} tab={tab} proId={proId} plan={plan} />
       ))}
+      {waiting.length > 0 && <WaitingPros proIds={waiting} plan={plan} />}
     </>
+  )
+}
+
+/** Profissionais que ainda não montaram o plano: um cartão compacto no fim, sem ocupar o lugar dos planos prontos. */
+function WaitingPros({ proIds, plan }: { proIds: string[]; plan: MyPlan }) {
+  return (
+    <section className="card space-y-3" aria-label="Aguardando seu profissional">
+      <h2 className="eyebrow">Aguardando seu profissional</h2>
+      <ul className="space-y-2">
+        {proIds.map((id) => {
+          const pro = plan.shares.get(id)?.professionals
+          const name = pro?.profiles.full_name ?? 'Seu profissional'
+          const first = name.split(' ')[0]
+          const note = plan.notes.find((n) => n.professional_id === id)
+          return (
+            <li key={id} className="flex items-start gap-3">
+              <Avatar seed={pro?.profiles.avatar_seed} photo={pro?.profiles.avatar_path} name={name} size={36} />
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="font-semibold">{first} ainda não montou seu plano</p>
+                {note && <p className="text-muted">Recado: {note.note}</p>}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
