@@ -25,9 +25,9 @@ select name from workout_routines;
 \echo '-- trocar o dono (deve FALHAR):'
 update workout_routines set person_id = 'fe000000-0000-4000-8000-000000000002';
 \echo '-- registra treino feito no app (OK):'
-insert into history_entries (kind, occurred_on, title, source) values ('treino', current_date, 'Dia A', 'skyro');
+insert into history_entries (kind, occurred_on, title, details, source) values ('treino', current_date, 'Dia A', '{"exercises":[{"name":"Supino","sets":[{"reps":8,"weight_kg":40}]}]}', 'skyro');
 \echo '-- origem skyro so vale para treino (deve FALHAR):'
-insert into history_entries (kind, occurred_on, title, source) values ('marco', current_date, 'x', 'skyro');
+insert into history_entries (kind, occurred_on, title, details, source) values ('marco', current_date, 'x', '{"exercises":[{"name":"Supino","sets":[{"reps":8,"weight_kg":40}]}]}', 'skyro');
 \echo '-- limite de 30 treinos montados (deve FALHAR no 31o):'
 insert into workout_routines (name) select 'T' || g from generate_series(2, 30) g;
 insert into workout_routines (name) values ('T31');
@@ -51,33 +51,25 @@ set request.jwt.claim.sub = 'd0000000-0000-4000-8000-000000000001';
 \echo '-- ve os dois treinos do seed (esperado 2):'
 select count(*) from workout_routines;
 \echo '-- demo registra treino no app (OK):'
-insert into history_entries (kind, occurred_on, title, source, source_key) values ('treino', current_date, 'Treino livre', 'skyro', 't-demo');
+insert into history_entries (kind, occurred_on, title, details, source, source_key) values ('treino', current_date, 'Treino livre', '{"exercises":[{"name":"Supino","sets":[{"reps":8,"weight_kg":40}]}]}', 'skyro', 't-demo');
 \echo '-- demo continua sem importar e sem marco (2x deve FALHAR):'
 insert into history_entries (kind, occurred_on, title, source) values ('treino', current_date, 'x', 'hevy');
 insert into history_entries (kind, occurred_on, title, source) values ('marco', current_date, 'x', 'manual');
 \echo '-- demo apaga so o que registrou no app (esperado DELETE 1, depois DELETE 0):'
 delete from history_entries where source_key = 't-demo';
 delete from history_entries where source <> 'skyro';
+\echo '-- demo nao apaga os treinos de exemplo do seed (esperado DELETE 0 e 2):'
+delete from history_entries where source = 'skyro';
+select count(*) from history_entries where source = 'skyro';
+\echo '-- treino do app com formato torto nao entra (4x deve FALHAR):'
+insert into history_entries (kind, occurred_on, title, source) values ('treino', current_date, 'x', 'skyro');
+insert into history_entries (kind, occurred_on, title, details, source) values ('treino', current_date, 'x', '{"exercises":"oi"}', 'skyro');
+insert into history_entries (kind, occurred_on, title, details, source) values ('treino', current_date, 'x', '{"exercises":[{"name":"a","sets":{}}]}', 'skyro');
+insert into history_entries (kind, occurred_on, title, details, source) values ('treino', current_date, 'x', '{"exercises":[{"name":"a","sets":[{"reps":"dez"}]}]}', 'skyro');
 
 \echo '== Anonimo =='
 reset request.jwt.claim.sub;
 set role anon;
 \echo '-- anonimo nao le (deve FALHAR):'
 select count(*) from workout_routines;
-reset role;
-
--- Demo não apaga os treinos de exemplo do seed.
-set role authenticated;
-select set_config('request.jwt.claims', '{"sub":"d0000000-0000-4000-8000-000000000001","role":"authenticated"}', false);
-delete from public.history_entries where source = 'skyro' and source_key like 'demo-skyro-%';
-select count(*) as exemplos_continuam_2 from public.history_entries where source = 'skyro' and source_key like 'demo-skyro-%';
-reset role;
-
--- Treino do app com formato torto não entra (falha nos quatro).
-set role authenticated;
-insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{}', 'skyro');
-insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{"exercises":"oi"}', 'skyro');
-insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{"exercises":[{"name":"a","sets":{}}]}', 'skyro');
-insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{"exercises":[{"name":"a","sets":[{"reps":"dez"}]}]}', 'skyro');
-select count(*) as tortos_0 from public.history_entries where title = 'x';
 reset role;
