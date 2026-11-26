@@ -4,7 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/auth-context'
 import type { ChallengeCheckin, ChallengeCheer, ChallengeParticipant } from '../lib/challenges'
-import { addDays, today } from '../lib/dates'
+import { addDays, todayBRT } from '../lib/dates'
 import { supabase } from '../lib/supabase'
 import { fetchAuthors } from './useCommunity'
 
@@ -66,9 +66,9 @@ export function useChallenges() {
         supabase
           .from('challenges')
           .select(
-            'id, club_id, created_by, title, starts_on, ends_on, challenge_participants(user_id, weekly_goal), challenge_checkins(user_id, activity_date), challenge_cheers(from_user, to_user, cheer_date), community_posts(id)',
+            'id, club_id, created_by, title, starts_on, ends_on, challenge_participants(user_id, weekly_goal, left_at), challenge_checkins(user_id, activity_date), challenge_cheers(from_user, to_user, cheer_date), community_posts(id)',
           )
-          .gte('ends_on', addDays(today(), -7 * HISTORY_WEEKS))
+          .gte('ends_on', addDays(todayBRT(), -7 * HISTORY_WEEKS))
           .order('starts_on', { ascending: false })
           .limit(300),
       ])
@@ -163,10 +163,10 @@ export function useJoinChallenge() {
   })
 }
 
+/** Sai da rodada: os treinos dela são apagados e a pessoa não volta nesta rodada. */
 export function useLeaveChallenge() {
-  return useChallengeMutation<string>(async (challengeId, me) => {
-    fail((await supabase.from('challenge_checkins').delete().eq('challenge_id', challengeId).eq('user_id', me)).error)
-    fail((await supabase.from('challenge_participants').delete().eq('challenge_id', challengeId).eq('user_id', me)).error)
+  return useChallengeMutation<string>(async (challengeId) => {
+    fail((await supabase.rpc('leave_challenge', { p_challenge: challengeId })).error)
   })
 }
 

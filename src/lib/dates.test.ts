@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, formatDateTimeBR, formatHours, formatMinutes, toISODate, weekOf } from './dates'
+import { addDays, formatDateTimeBR, formatHours, formatMinutes, todayBRT, toISODate, weekOf } from './dates'
 
 describe('datas', () => {
   it('toISODate usa o dia local, não UTC (23h em São Paulo continua sendo o mesmo dia)', () => {
@@ -30,5 +30,12 @@ describe('datas', () => {
     // 01h30 em UTC do dia 15 ainda é 22h30 do dia 14 em Brasília
     expect(formatDateTimeBR('2026-11-15T01:30:00Z')).toBe('14/11 às 22:30')
     expect(formatDateTimeBR('2026-11-14T12:05:00-03:00')).toBe('14/11 às 12:05')
+  })
+})
+
+describe('todayBRT', () => {
+  it('usa o dia de Brasília, não o UTC nem o do aparelho', () => {
+    expect(todayBRT(new Date('2026-11-27T01:30:00Z'))).toBe('2026-11-26') // 22h30 de quinta em Brasília
+    expect(todayBRT(new Date('2026-11-27T03:30:00Z'))).toBe('2026-11-27')
   })
 })

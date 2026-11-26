@@ -74,11 +74,53 @@ insert into challenge_checkins (challenge_id, user_id, activity_date) values (:'
 delete from challenge_checkins where user_id = 'fa000000-0000-4000-8000-000000000001';
 \echo '-- ve o nome do Guilherme pela view (esperado Guilherme):'
 select full_name from community_authors where id = 'fa000000-0000-4000-8000-000000000001';
-\echo '-- sai do desafio (esperado DELETE 1):'
+\echo '-- registra um treino e sai pela funcao (OK); o treino some (esperado 0):'
+insert into challenge_checkins (challenge_id, user_id, activity_date) values (:'ch', auth.uid(), public.today_brt());
+select public.leave_challenge(:'ch');
+select count(*) from challenge_checkins where user_id = auth.uid();
+\echo '-- apaga a participacao direto (deve FALHAR):'
 delete from challenge_participants where user_id = auth.uid();
+\echo '-- volta na mesma rodada com meta menor (deve FALHAR):'
+insert into challenge_participants (challenge_id, user_id, weekly_goal) values (:'ch', auth.uid(), 1);
+\echo '-- registra treino depois de sair (deve FALHAR):'
+insert into challenge_checkins (challenge_id, user_id, activity_date) values (:'ch', auth.uid(), public.today_brt());
+\echo '-- sai de novo (deve FALHAR):'
+select public.leave_challenge(:'ch');
 
 \echo '== Lucas (demo) =='
 set request.jwt.claim.sub = 'd0000000-0000-4000-8000-000000000001';
 \echo '-- ve so o clube demo (esperado 1) e 2 desafios:'
 select count(*) from community_clubs;
 select count(*) from challenges;
+
+\echo '== Lucas (demo) e o desafio encerrado da semana passada =='
+reset role;
+select id as ch_old from challenges where club_id = 'c1000000-0000-4000-8000-0000000000d1' and starts_on = (:'seg')::date - 7 \gset
+set role authenticated;
+set request.jwt.claim.sub = 'd0000000-0000-4000-8000-000000000001';
+\echo '-- registra treino em desafio encerrado (deve FALHAR):'
+insert into challenge_checkins (challenge_id, user_id, activity_date) values (:'ch_old', auth.uid(), (:'seg')::date - 2);
+\echo '-- apaga treino de desafio encerrado (esperado DELETE 0):'
+delete from challenge_checkins where challenge_id = :'ch_old' and user_id = auth.uid();
+\echo '-- sai de desafio encerrado (deve FALHAR):'
+select public.leave_challenge(:'ch_old');
+
+\echo '== Equipe demo (conta publica) =='
+set request.jwt.claim.sub = 'd0000000-0000-4000-8000-000000000003';
+\echo '-- nao ve clube, desafio nem post real (esperado 0, 0, 0):'
+select count(*) from community_clubs where not is_demo;
+select count(*) from challenges where id = :'ch';
+select count(*) from community_posts where author_id::text like 'fa%';
+\echo '-- apaga desafio e post reais (esperado DELETE 0 e DELETE 0):'
+delete from challenges where id = :'ch';
+delete from community_posts where author_id::text like 'fa%';
+\echo '-- apaga post demo (esperado DELETE 1):'
+delete from community_posts where id = (select id from community_posts where author_id = 'e0000000-0000-4000-8000-000000000001' limit 1);
+
+\echo '== anonimo =='
+reset role;
+set role anon;
+\echo '-- chama as funcoes auxiliares (deve FALHAR 2x):'
+select public.is_challenge_participant(:'ch', 'fa000000-0000-4000-8000-000000000001');
+select public.checkin_date_ok(:'ch', public.today_brt());
+reset role;

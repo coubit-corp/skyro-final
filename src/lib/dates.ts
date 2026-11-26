@@ -19,6 +19,14 @@ export function today(): string {
   return toISODate(new Date())
 }
 
+/**
+ * Hoje no horário de Brasília, que é o dia que o banco usa nos desafios.
+ * Fora desse fuso, o dia do aparelho pode ser outro.
+ */
+export function todayBRT(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(now)
+}
+
 export function addDays(iso: string, days: number): string {
   const d = fromISODate(iso)
   d.setDate(d.getDate() + days)

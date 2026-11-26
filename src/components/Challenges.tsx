@@ -27,7 +27,7 @@ import {
 } from '../lib/challenges'
 import type { CommunityAuthor } from '../lib/community'
 import { POST_MAX } from '../lib/community'
-import { addDays, today, weekOf, weekdayShort } from '../lib/dates'
+import { addDays, todayBRT, weekOf, weekdayShort } from '../lib/dates'
 import { Avatar } from './Avatar'
 import { ErrorState, Modal, Skeleton } from './ui'
 
@@ -44,7 +44,8 @@ export function ChallengesSection({ focusId }: { focusId: string | null }) {
   const { session } = useAuth()
   const me = session?.user.id ?? ''
   const query = useChallenges()
-  const todayIso = today()
+  // O banco conta os dias do desafio no horário de Brasília
+  const todayIso = todayBRT()
 
   if (query.isLoading) return <Skeleton className="h-32" />
   // Banco sem as tabelas de desafios: a Comunidade continua só com o feed.
@@ -99,11 +100,11 @@ function ClubBlock({
   const open = challenges
     .filter((c) => challengeStatus(c, todayIso) !== 'encerrado' || c.id === focusId)
     .sort((a, b) => {
-      const mine = (c: Challenge) => Number(c.participants.some((p) => p.user_id === me))
+      const mine = (c: Challenge) => Number(c.participants.some((p) => p.user_id === me && !p.left_at))
       return mine(b) - mine(a) || a.starts_on.localeCompare(b.starts_on)
     })
   const lastResult = challenges.find(
-    (c) => c.starts_on === lastWeek && c.id !== focusId && c.participants.some((p) => p.user_id === me),
+    (c) => c.starts_on === lastWeek && c.id !== focusId && c.participants.some((p) => p.user_id === me && !p.left_at),
   )
   const lastRow = lastResult && scoreboard(lastResult.participants, lastResult.checkins, [], me, todayIso).find((r) => r.userId === me)
 
@@ -191,6 +192,8 @@ function ChallengeCard({
   const status = challengeStatus(challenge, todayIso)
   const rows = scoreboard(challenge.participants, challenge.checkins, challenge.cheers, me, todayIso)
   const mine = rows.find((r) => r.userId === me)
+  const left = challenge.participants.some((p) => p.user_id === me && p.left_at)
+  const [confirmLeave, setConfirmLeave] = useState(false)
   const canLog = new Set(loggableDays(challenge, todayIso))
   const error = join.error ?? leave.error ?? setCheckin.error ?? cheer.error
 
@@ -295,6 +298,8 @@ function ChallengeCard({
             </p>
           ) : null}
         </div>
+      ) : left ? (
+        <p className="text-sm text-muted">Você saiu desta rodada. Dá para entrar de novo no próximo desafio.</p>
       ) : status !== 'encerrado' ? (
         <div className="space-y-3">
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
@@ -377,8 +382,7 @@ function ChallengeCard({
           {mine && (
             <button
               className="tap ml-auto rounded-lg px-2 font-semibold text-muted hover:bg-chip"
-              disabled={leave.isPending}
-              onClick={() => leave.mutate(challenge.id)}
+              onClick={() => setConfirmLeave(true)}
             >
               Sair do desafio
             </button>
@@ -386,7 +390,27 @@ function ChallengeCard({
         </footer>
       )}
 
-      {mine && (
+      <Modal open={confirmLeave} onClose={() => setConfirmLeave(false)} title="Sair do desafio?">
+        <p className="text-sm text-muted">
+          Seus treinos desta rodada são apagados e você não volta nela, porque a meta é fixa. No próximo desafio dá para
+          entrar de novo.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button className="btn-outline px-4 py-2" onClick={() => setConfirmLeave(false)}>
+            Ficar
+          </button>
+          <button
+            className="btn-primary px-4 py-2"
+            disabled={leave.isPending}
+            onClick={() => leave.mutate(challenge.id, { onSettled: () => setConfirmLeave(false) })}
+          >
+            Sair
+          </button>
+        </div>
+      </Modal>
+
+      {/* Só existe enquanto aberto: o texto sugerido usa a contagem de treinos do momento */}
+      {mine && sharing && (
         <ShareModal
           open={sharing}
           onClose={() => setSharing(false)}

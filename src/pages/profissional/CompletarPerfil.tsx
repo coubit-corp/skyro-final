@@ -1,3 +1,4 @@
+import { pendingInvitePath } from '../../lib/invite'
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../auth/auth-context'
@@ -21,6 +22,9 @@ export function CompletarPerfil() {
   if (me.isLoading) return <FullScreenLoader />
   if (me.error) return <ErrorState message={me.error.message} onRetry={() => me.refetch()} />
   if (me.data) {
+    // Quem chegou por um convite de desafio segue para ele depois de publicar o perfil
+    const invite = pendingInvitePath('professional')
+    if (invite) return <Navigate to={invite} replace />
     return publishing ? <Navigate to="/pro/configuracoes" replace state={{ justCreated: true }} /> : <Navigate to="/pro" replace />
   }
 

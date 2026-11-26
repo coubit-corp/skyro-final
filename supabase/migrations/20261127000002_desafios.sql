@@ -14,7 +14,10 @@
 --   1. Contas demo só veem e participam de clubes e desafios demo; reais, só reais.
 --   2. A meta fica fixa depois de entrar (não há UPDATE). Treino só conta dentro
 --      da semana do desafio, até hoje (horário de Brasília), e uma vez por dia.
---   3. Cada um registra, incentiva e sai só em nome próprio.
+--   3. Cada um registra, incentiva e sai só em nome próprio. Quem sai de uma
+--      rodada não volta nela (senão daria para trocar a meta), e desafio
+--      encerrado não muda mais.
+--   4. A conta demo da Equipe é pública: só modera conteúdo demo, nunca o real.
 --
 -- Rodar no Supabase: SQL Editor → colar → Run (depois de 20261127000001_comunidade.sql).
 -- Pode rodar mais de uma vez.
@@ -58,8 +61,10 @@ create table if not exists public.challenge_participants (
   user_id       uuid not null references public.profiles (id) on delete cascade,
   weekly_goal   smallint not null check (weekly_goal between 1 and 7),
   joined_at     timestamptz not null default now(),
+  left_at       timestamptz,
   primary key (challenge_id, user_id)
 );
+alter table public.challenge_participants add column if not exists left_at timestamptz;
 
 create table if not exists public.challenge_checkins (
   challenge_id   uuid not null references public.challenges (id) on delete cascade,
@@ -91,6 +96,24 @@ security definer
 set search_path = public
 as $$ select coalesce((select is_demo from public.profiles where id = auth.uid()), false) $$;
 
+-- Equipe de verdade (a conta demo da Equipe é pública e só mexe em conteúdo demo).
+create or replace function public.is_real_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$ select public.is_admin() and not public.viewer_is_demo() $$;
+
+-- A Equipe pode moderar o que esta pessoa escreveu? (demo modera demo; real modera tudo)
+create or replace function public.can_moderate(p_author uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$ select public.is_admin() and (public.is_real_admin() or public.same_world(p_author)) $$;
+
 create or replace function public.club_visible(p_club uuid)
 returns boolean
 language sql
@@ -100,7 +123,7 @@ set search_path = public
 as $$
   select exists (
     select 1 from public.community_clubs c
-    where c.id = p_club and (c.is_demo = public.viewer_is_demo() or public.is_admin())
+    where c.id = p_club and (c.is_demo = public.viewer_is_demo() or public.is_real_admin())
   );
 $$;
 
@@ -121,10 +144,13 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (select 1 from public.challenge_participants where challenge_id = p_challenge and user_id = p_user);
+  select public.challenge_visible(p_challenge) and exists (
+    select 1 from public.challenge_participants
+    where challenge_id = p_challenge and user_id = p_user and left_at is null
+  );
 $$;
 
--- O treino cai dentro da semana do desafio e não é no futuro?
+-- O desafio ainda está aberto e o treino cai dentro da semana dele, até hoje?
 create or replace function public.checkin_date_ok(p_challenge uuid, p_date date)
 returns boolean
 language sql
@@ -134,9 +160,43 @@ set search_path = public
 as $$
   select exists (
     select 1 from public.challenges ch
-    where ch.id = p_challenge and p_date between ch.starts_on and least(ch.ends_on, public.today_brt())
+    where ch.id = p_challenge
+      and public.club_visible(ch.club_id)
+      and ch.ends_on >= public.today_brt()
+      and p_date between ch.starts_on and public.today_brt()
   );
 $$;
+
+-- Sair de um desafio aberto: apaga os treinos da rodada e não deixa voltar nela.
+create or replace function public.leave_challenge(p_challenge uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.challenges ch
+    where ch.id = p_challenge and ch.ends_on >= public.today_brt()
+  ) then
+    raise exception 'desafio_encerrado' using errcode = '42501';
+  end if;
+  update public.challenge_participants set left_at = now()
+  where challenge_id = p_challenge and user_id = auth.uid() and left_at is null;
+  if not found then
+    raise exception 'nao_participa' using errcode = 'P0002';
+  end if;
+  delete from public.challenge_checkins where challenge_id = p_challenge and user_id = auth.uid();
+end;
+$$;
+
+-- Funções auxiliares: só para quem está logado.
+revoke execute on function public.viewer_is_demo(), public.is_real_admin(), public.can_moderate(uuid),
+  public.club_visible(uuid), public.challenge_visible(uuid), public.is_challenge_participant(uuid, uuid),
+  public.checkin_date_ok(uuid, date), public.leave_challenge(uuid) from public, anon;
+grant execute on function public.viewer_is_demo(), public.is_real_admin(), public.can_moderate(uuid),
+  public.club_visible(uuid), public.challenge_visible(uuid), public.is_challenge_participant(uuid, uuid),
+  public.checkin_date_ok(uuid, date), public.leave_challenge(uuid) to authenticated, service_role;
 
 alter table public.community_clubs enable row level security;
 alter table public.community_club_members enable row level security;
@@ -183,7 +243,8 @@ create policy "challenges: criar" on public.challenges
     and starts_on between public.today_brt() - 6 and public.today_brt() + 7
   );
 create policy "challenges: apagar" on public.challenges
-  for delete to authenticated using (created_by = auth.uid() or public.is_admin());
+  for delete to authenticated
+  using (public.club_visible(club_id) and (created_by = auth.uid() or public.is_admin()));
 
 create policy "challenge_participants: leitura" on public.challenge_participants
   for select to authenticated using (public.challenge_visible(challenge_id));
@@ -194,8 +255,7 @@ create policy "challenge_participants: entrar" on public.challenge_participants
     and public.challenge_visible(challenge_id)
     and exists (select 1 from public.challenges ch where ch.id = challenge_id and ch.ends_on >= public.today_brt())
   );
-create policy "challenge_participants: sair" on public.challenge_participants
-  for delete to authenticated using (user_id = auth.uid());
+-- Sair é pela função leave_challenge (não há DELETE nem UPDATE direto).
 
 create policy "challenge_checkins: leitura" on public.challenge_checkins
   for select to authenticated using (public.challenge_visible(challenge_id));
@@ -207,7 +267,8 @@ create policy "challenge_checkins: registrar" on public.challenge_checkins
     and public.checkin_date_ok(challenge_id, activity_date)
   );
 create policy "challenge_checkins: desfazer" on public.challenge_checkins
-  for delete to authenticated using (user_id = auth.uid());
+  for delete to authenticated
+  using (user_id = auth.uid() and public.checkin_date_ok(challenge_id, activity_date));
 
 create policy "challenge_cheers: leitura" on public.challenge_cheers
   for select to authenticated using (public.challenge_visible(challenge_id));
@@ -241,7 +302,6 @@ grant delete on public.community_club_members to authenticated;
 grant insert (club_id, created_by, title, starts_on, ends_on) on public.challenges to authenticated;
 grant delete on public.challenges to authenticated;
 grant insert (challenge_id, user_id, weekly_goal) on public.challenge_participants to authenticated;
-grant delete on public.challenge_participants to authenticated;
 grant insert (challenge_id, user_id, activity_date) on public.challenge_checkins to authenticated;
 grant delete on public.challenge_checkins to authenticated;
 grant insert (challenge_id, from_user, to_user) on public.challenge_cheers to authenticated;
@@ -252,12 +312,36 @@ create or replace view public.community_authors as
   select p.id, p.full_name, p.avatar_seed, p.avatar_path, p.role, pr.specialty, coalesce(pr.verified, false) as verified
   from public.profiles p
   left join public.professionals pr on pr.id = p.id
-  where (public.same_world(p.id) or public.is_admin())
+  where (public.same_world(p.id) or public.is_real_admin())
     and (
       exists (select 1 from public.community_posts cp where cp.author_id = p.id)
       or exists (select 1 from public.community_comments cc where cc.author_id = p.id)
       or exists (select 1 from public.challenge_participants cpt where cpt.user_id = p.id)
     );
+
+-- Moderação do feed: a conta demo da Equipe só lê e apaga conteúdo demo.
+drop policy if exists "community_posts: leitura" on public.community_posts;
+create policy "community_posts: leitura" on public.community_posts
+  for select to authenticated
+  using (public.same_world(author_id) or public.is_real_admin());
+
+drop policy if exists "community_posts: apagar" on public.community_posts;
+create policy "community_posts: apagar" on public.community_posts
+  for delete to authenticated
+  using (author_id = auth.uid() or public.can_moderate(author_id));
+
+drop policy if exists "community_comments: apagar" on public.community_comments;
+create policy "community_comments: apagar" on public.community_comments
+  for delete to authenticated
+  using (author_id = auth.uid() or public.can_moderate(author_id));
+
+drop policy if exists "community_reports: leitura" on public.community_reports;
+create policy "community_reports: leitura" on public.community_reports
+  for select to authenticated
+  using (
+    reporter_id = auth.uid()
+    or (public.is_admin() and exists (select 1 from public.community_posts p where p.id = post_id))
+  );
 
 -- Clube inicial para contas reais (o da demo vem no seed 07).
 insert into public.community_clubs (id, name, description, is_demo)

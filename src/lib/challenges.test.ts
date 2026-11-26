@@ -39,6 +39,10 @@ describe('scoreboard', () => {
     expect(rows[1]).toMatchObject({ done: 1, cheersToday: 2, cheeredByMeToday: true })
     expect(rows[2]).toMatchObject({ done: 1, cheersToday: 0, cheeredByMeToday: false })
   })
+  it('quem saiu da rodada não aparece no placar', () => {
+    const left = [...participants, { user_id: 'saiu', weekly_goal: 1, left_at: '2026-11-24T10:00:00Z' }]
+    expect(scoreboard(left, checkins, cheers, 'me', '2026-11-26').map((r) => r.userId)).not.toContain('saiu')
+  })
 })
 
 describe('weeklyStreak', () => {
@@ -82,5 +86,8 @@ describe('loggableDays', () => {
       '2026-11-24',
       '2026-11-25',
     ])
+  })
+  it('desafio encerrado não aceita mais registro', () => {
+    expect(loggableDays({ starts_on: '2026-11-23', ends_on: '2026-11-29' }, '2026-11-30')).toEqual([])
   })
 })

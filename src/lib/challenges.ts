@@ -13,6 +13,8 @@ export const GOAL_OPTIONS = [1, 2, 3, 4, 5, 6, 7] as const
 export interface ChallengeParticipant {
   user_id: string
   weekly_goal: number
+  /** Saiu desta rodada (não volta nela) */
+  left_at?: string | null
 }
 
 export interface ChallengeCheckin {
@@ -63,7 +65,7 @@ export function scoreboard(
   me: string,
   todayIso: string,
 ): ParticipantRow[] {
-  const rows = participants.map((p) => {
+  const rows = participants.filter((p) => !p.left_at).map((p) => {
     const days = new Set(checkins.filter((c) => c.user_id === p.user_id).map((c) => c.activity_date))
     const today = cheers.filter((c) => c.to_user === p.user_id && c.cheer_date === todayIso)
     return {
@@ -103,7 +105,7 @@ export function weeksMetBy(
 ): Set<string> {
   const weeks = new Set<string>()
   for (const c of challenges) {
-    const p = c.participants.find((x) => x.user_id === userId)
+    const p = c.participants.find((x) => x.user_id === userId && !x.left_at)
     if (!p) continue
     const done = new Set(c.checkins.filter((x) => x.user_id === userId).map((x) => x.activity_date)).size
     if (done >= p.weekly_goal) weeks.add(c.starts_on)
@@ -111,7 +113,8 @@ export function weeksMetBy(
   return weeks
 }
 
-/** Dias da semana do desafio em que dá para registrar treino (até hoje). */
+/** Dias em que dá para registrar treino: da semana do desafio, até hoje, e só com ele aberto. */
 export function loggableDays(c: Pick<ChallengeLike, 'starts_on' | 'ends_on'>, todayIso: string): string[] {
-  return weekOf(c.starts_on).filter((d) => d <= todayIso && d <= c.ends_on)
+  if (todayIso > c.ends_on) return []
+  return weekOf(c.starts_on).filter((d) => d <= todayIso)
 }
