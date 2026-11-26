@@ -153,7 +153,7 @@ export function ChipTabs<T extends string>({
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition ${
-            value === o.value ? 'border-navy bg-navy text-white' : 'border-line bg-card text-ink hover:border-lavender'
+            value === o.value ? 'border-primary bg-primary text-white' : 'border-line bg-card text-ink hover:border-ink/40'
           }`}
         >
           {o.label}
