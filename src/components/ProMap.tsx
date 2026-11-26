@@ -11,7 +11,7 @@ import { specialtyLabel, specialtyLetter } from '../lib/specialties'
 function proIcon(letter: string) {
   return L.divIcon({
     className: '',
-    html: `<div style="width:34px;height:34px;border-radius:12px 12px 12px 2px;background:#1C2A4D;color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px Inter,sans-serif;box-shadow:0 2px 6px rgba(28,42,77,.35)">${letter}</div>`,
+    html: `<div style="width:34px;height:34px;border-radius:12px 12px 12px 2px;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px Inter,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.35)">${letter}</div>`,
     iconSize: [34, 34],
     iconAnchor: [4, 34],
     popupAnchor: [13, -30],
@@ -20,7 +20,7 @@ function proIcon(letter: string) {
 
 const meIcon = L.divIcon({
   className: '',
-  html: '<div style="width:22px;height:22px;border-radius:50%;background:#4C63B6;border:4px solid #fff;box-shadow:0 0 0 6px rgba(76,99,182,.25)"></div>',
+  html: '<div style="width:22px;height:22px;border-radius:50%;background:#16A34A;border:4px solid #fff;box-shadow:0 0 0 6px rgba(22,163,74,.25)"></div>',
   iconSize: [22, 22],
   iconAnchor: [11, 11],
 })

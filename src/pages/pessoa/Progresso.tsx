@@ -92,8 +92,8 @@ export function Progresso() {
 
           {/* XP e nível */}
           <div className="rounded-card bg-navy p-5 text-white">
-            <p className="text-xs font-semibold tracking-[0.12em] text-lavender uppercase">Seu XP</p>
-            <p className="mt-1 font-display text-4xl font-extrabold">{xpFormat.format(data.xp)} XP</p>
+            <p className="text-[13px] font-semibold text-lavender">Seu XP</p>
+            <p className="mt-1 font-display text-4xl font-bold">{xpFormat.format(data.xp)} XP</p>
             <p className="mt-1 text-sm text-white/80">
               Nível {data.level.current.name}
               {data.level.next

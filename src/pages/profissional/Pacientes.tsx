@@ -125,7 +125,7 @@ export function Pacientes() {
       ) : (
         patients.data!.length > 0 && (
           <div className="flex items-center gap-4 rounded-card bg-navy px-5 py-4 text-white">
-            <span className="font-display text-4xl font-extrabold text-lavender">{summary.count}</span>
+            <span className="font-display text-4xl font-bold text-lavender">{summary.count}</span>
             <div>
               <p className="font-semibold">{summary.title}</p>
               <p className="text-xs text-white/70">{summary.subtitle}</p>

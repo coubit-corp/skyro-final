@@ -53,7 +53,7 @@ export function ResumoSemana() {
         <Link to="/progresso" className="tap gap-1 text-sm font-semibold text-white">
           <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Progresso
         </Link>
-        <p className="mt-2 text-xs font-semibold tracking-[0.12em] text-lavender uppercase">
+        <p className="mt-2 text-[13px] font-semibold text-lavender">
           {week ? rangeLabel(week.from, week.to) : 'Últimos 7 dias'}
         </p>
         <h1 className="mt-1 text-[28px] leading-tight font-bold">Seu resumo da semana</h1>

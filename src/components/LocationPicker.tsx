@@ -8,7 +8,7 @@ import { DEFAULT_LOCATION } from '../lib/geo'
 
 const pinIcon = L.divIcon({
   className: '',
-  html: '<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#4C63B6;border:3px solid #fff;box-shadow:0 2px 6px rgba(28,42,77,.4)"></div>',
+  html: '<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#16A34A;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
   iconSize: [30, 30],
   iconAnchor: [15, 30],
 })
