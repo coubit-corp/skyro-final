@@ -8,7 +8,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': o main.tsx decide a hora de trocar de versão (sem apagar rascunhos)
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Skyro',
@@ -17,8 +18,8 @@ export default defineConfig({
         lang: 'pt-BR',
         start_url: '/',
         display: 'standalone',
-        background_color: '#F1F4FC',
-        theme_color: '#1C2A4D',
+        background_color: '#000000',
+        theme_color: '#000000',
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
@@ -28,6 +29,8 @@ export default defineConfig({
       workbox: {
         // Dados do Supabase nunca ficam em cache: só os arquivos do app.
         navigateFallbackDenylist: [/^\/auth\//],
+        // Já na primeira visita o service worker assume a aba, para ela receber as próximas versões
+        clientsClaim: true,
       },
     }),
   ],
