@@ -1,8 +1,14 @@
 import { ClipboardList, Pencil, PlayCircle, Plus, Trash2 } from 'lucide-react'
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { useDeletePlanItem, usePatientPlan, useSavePlanItem, useSavePlanNote } from '../hooks/usePlanData'
+import {
+  useDeletePlanItem,
+  usePatientPlan,
+  useSavePlanItem,
+  useSavePlanNote,
+  type PatientPlan,
+} from '../hooks/usePlanData'
 import type { DailyLog, PlanItem, PlanKind, Specialty } from '../lib/database.types'
-import { today, weekdayShort } from '../lib/dates'
+import { dayOfMonth, today, weekdayShort } from '../lib/dates'
 import {
   adherence,
   FOODS_MAX,
@@ -12,6 +18,7 @@ import {
   kindForSpecialty,
   lastWeekDays,
   NOTES_MAX,
+  OUTCOME_LABEL,
   PLAN_NOTE_MAX,
   tabForKind,
   TITLE_MAX,
@@ -78,6 +85,8 @@ export function PlanEditor({
       ) : (
         <>
           {kind === 'fisio' && <PainWeek logs={logs} days={[...week.slice(1), todayIso]} />}
+
+          {kind === 'refeicao' && <MealExceptions items={plan.data!.items} checks={plan.data!.checks} />}
 
           <NoteForm personId={personId} initial={plan.data!.note?.note ?? ''} exists={Boolean(plan.data!.note)} />
 
@@ -399,6 +408,29 @@ function Field({
           {error}
         </p>
       )}
+    </div>
+  )
+}
+
+/** Substituições e refeições que não deram certo nos últimos dias: é onde o profissional pode ajudar. */
+function MealExceptions({ items, checks }: { items: PlanItem[]; checks: PatientPlan['checks'] }) {
+  const titles = new Map(items.map((i) => [i.id, i.title]))
+  const rows = checks
+    .filter((c) => c.outcome !== 'feito' && titles.has(c.item_id))
+    .sort((a, b) => b.check_date.localeCompare(a.check_date))
+  if (rows.length === 0) return null
+  return (
+    <div className="rounded-xl bg-surface px-3 py-3">
+      <p className="text-sm font-semibold">Substituições e dificuldades recentes</p>
+      <ul className="mt-2 space-y-1.5 text-sm">
+        {rows.map((c) => (
+          <li key={`${c.item_id}|${c.check_date}`}>
+            <span className="text-muted">{weekdayShort(c.check_date)} {dayOfMonth(c.check_date)} · </span>
+            <span className="font-semibold">{titles.get(c.item_id)}</span>: {OUTCOME_LABEL[c.outcome].toLowerCase()}
+            {c.note && <span className="text-muted"> — “{c.note}”</span>}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

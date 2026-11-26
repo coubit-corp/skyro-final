@@ -1,7 +1,7 @@
 // Regras do "Meu plano". Espelham a migration 20261115000002_planos.sql para o
 // erro aparecer na tela antes de salvar; quem garante é o banco.
 
-import type { PlanItem, PlanKind, Specialty } from './database.types'
+import type { PlanItem, PlanKind, PlanOutcome, Specialty } from './database.types'
 import { addDays, fromISODate, toISODate } from './dates'
 
 export type PlanTab = 'treino' | 'nutricao' | 'mente' | 'fisio'
@@ -109,10 +109,11 @@ export interface Adherence {
  */
 export function adherence(
   items: Pick<PlanItem, 'id' | 'weekdays' | 'created_at'>[],
-  checks: { item_id: string; check_date: string }[],
+  checks: { item_id: string; check_date: string; outcome?: PlanOutcome }[],
   days: string[],
 ): Adherence {
-  const done = new Set(checks.map((c) => `${c.item_id}|${c.check_date}`))
+  // "Não consegui" fica registrado, mas não conta como feito.
+  const done = new Set(checks.filter((c) => c.outcome !== 'nao_consegui').map((c) => `${c.item_id}|${c.check_date}`))
   let planned = 0
   let ok = 0
   for (const day of days) {
@@ -232,3 +233,13 @@ export function toPlanItemRow(kind: PlanKind, v: PlanItemValues) {
 export function plannedFirst<T>(ids: T[], hasPlan: (id: T) => boolean): T[] {
   return [...ids.filter(hasPlan), ...ids.filter((id) => !hasPlan(id))]
 }
+
+// ------------------------------------------------------- registro da refeição
+
+export const OUTCOME_LABEL: Record<PlanOutcome, string> = {
+  feito: 'Comi como planejado',
+  substituido: 'Substituí',
+  nao_consegui: 'Não consegui',
+}
+
+export const CHECK_NOTE_MAX = 200

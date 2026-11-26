@@ -177,6 +177,19 @@ begin
             else (d.o + i.position) % 4 <> 0
           end;
 
+    -- Nutrição: nem toda refeição sai como planejado. Uma troca ontem e uma
+    -- falta anteontem, para a Ana ver onde pode ajudar.
+    update public.plan_checks c
+       set outcome = 'substituido', note = 'Pão de queijo e café com leite na padaria'
+      from public.plan_items i
+     where i.id = c.item_id and c.person_id = v_lucas and i.kind = 'refeicao'
+       and i.title = 'Café da manhã' and c.check_date = v_today - 1;
+    insert into public.plan_checks (item_id, person_id, check_date, outcome, note)
+    select i.id, v_lucas, v_today - 2, 'nao_consegui', 'Reunião até tarde, acabei pulando'
+    from public.plan_items i
+    where i.person_id = v_lucas and i.kind = 'refeicao' and i.title = 'Jantar leve'
+    on conflict (item_id, check_date) do update set outcome = excluded.outcome, note = excluded.note;
+
     -- Dor no ombro (0 a 10) da última semana: melhorando aos poucos.
     update public.daily_logs
        set pain_level = case (v_today - log_date) when 0 then 2 when 1 then 3 when 2 then 3 when 3 then 4
