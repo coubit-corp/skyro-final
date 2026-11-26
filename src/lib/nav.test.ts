@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { isNavActive, type NavMatch } from './nav'
 
 const PRO: NavMatch[] = [
-  { to: '/pro', end: true, alsoActiveOn: ['/pro/pacientes'] },
+  { to: '/pro', end: true },
+  { to: '/pro/clientes', alsoActiveOn: ['/pro/pacientes'] },
   { to: '/pro/agenda' },
   { to: '/pro/mensagens' },
   { to: '/pro/perfil' },
@@ -12,7 +13,8 @@ const active = (items: NavMatch[], path: string) => items.filter((i) => isNavAct
 describe('aba ativa do menu', () => {
   it('no painel do profissional, só uma aba fica ativa por tela', () => {
     expect(active(PRO, '/pro')).toEqual(['/pro'])
-    expect(active(PRO, '/pro/pacientes/abc')).toEqual(['/pro'])
+    expect(active(PRO, '/pro/clientes')).toEqual(['/pro/clientes'])
+    expect(active(PRO, '/pro/pacientes/abc')).toEqual(['/pro/clientes'])
     expect(active(PRO, '/pro/perfil')).toEqual(['/pro/perfil'])
     expect(active(PRO, '/pro/agenda')).toEqual(['/pro/agenda'])
     expect(active(PRO, '/pro/mensagens')).toEqual(['/pro/mensagens'])

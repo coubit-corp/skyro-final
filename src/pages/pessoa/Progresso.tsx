@@ -2,6 +2,7 @@ import { ArrowDown, ArrowRight, ArrowUp, ChevronRight, Flame } from 'lucide-reac
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { DemoBanner } from '../../components/DemoBanner'
+import { EvolutionTimeline } from '../../components/Evolution'
 import { ErrorState, PageHeader, Skeleton } from '../../components/ui'
 import { useDailyLogs, useHabitChecks } from '../../hooks/usePersonData'
 import { formatHours, today, weekdayShort } from '../../lib/dates'
@@ -51,7 +52,7 @@ export function Progresso() {
 
   return (
     <section className="space-y-4">
-      <PageHeader title="Seu progresso" subtitle={`Calculado a partir dos seus registros dos últimos ${XP_WINDOW_DAYS} dias.`} />
+      <PageHeader title="Sua evolução" subtitle={`Calculado a partir dos seus registros dos últimos ${XP_WINDOW_DAYS} dias.`} />
 
       {!data ? (
         <div className="space-y-4" aria-busy="true">
@@ -151,6 +152,8 @@ export function Progresso() {
           </details>
         </>
       )}
+
+      <EvolutionTimeline />
 
       <DemoBanner />
     </section>

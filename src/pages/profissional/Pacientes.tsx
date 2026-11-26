@@ -47,7 +47,7 @@ const BADGES: Record<PatientGroup, { label: string; className: string }> = {
   em_dia: { label: 'Em dia', className: 'bg-chip text-muted' },
 }
 
-function PatientCard({ p }: { p: PatientRow }) {
+export function PatientCard({ p }: { p: PatientRow }) {
   const badge = BADGES[groupOf(p.evaluation)]
   return (
     <li className="min-w-0">
@@ -100,11 +100,11 @@ export function Pacientes() {
       </header>
 
       <div>
-        <h1 className="text-[28px] font-bold">Seus pacientes</h1>
+        <h1 className="text-[28px] font-bold">Seus clientes</h1>
         <p className="text-sm text-muted">
           {me.data ? specialtyLabel(me.data.specialty) : profile?.full_name}
           {patients.data &&
-            ` · ${patients.data.length} ${patients.data.length === 1 ? 'paciente ativo' : 'pacientes ativos'}`}
+            ` · ${patients.data.length} ${patients.data.length === 1 ? 'cliente ativo' : 'clientes ativos'}`}
         </p>
       </div>
       <label className="relative block">
@@ -114,10 +114,10 @@ export function Pacientes() {
         />
         <input
           className="input pl-10"
-          placeholder="Buscar paciente"
+          placeholder="Buscar cliente"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Buscar paciente"
+          aria-label="Buscar cliente"
         />
       </label>
 
@@ -147,11 +147,11 @@ export function Pacientes() {
         </div>
       ) : patients.data!.length === 0 ? (
         <div className="card text-sm text-muted">
-          Nenhum paciente compartilhou a rotina com você ainda. Quando alguém tocar em "Compartilhar minha rotina" no
+          Nenhum cliente compartilhou a rotina com você ainda. Quando alguém tocar em "Compartilhar minha rotina" no
           seu perfil, ele aparece aqui.
         </div>
       ) : filtered.length === 0 ? (
-        <p className="card text-sm text-muted">Nenhum paciente com esse nome.</p>
+        <p className="card text-sm text-muted">Nenhum cliente com esse nome.</p>
       ) : (
         <div className="space-y-5">
           {GROUPS.map(({ key, title, hint }) =>

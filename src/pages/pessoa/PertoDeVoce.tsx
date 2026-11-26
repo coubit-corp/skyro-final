@@ -1,6 +1,6 @@
-import { MapPin } from 'lucide-react'
+import { MapPin, Scale } from 'lucide-react'
 import { lazy, Suspense, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { DemoBanner } from '../../components/DemoBanner'
 import { ProCard } from '../../components/ProCard'
 import { ChipTabs, ErrorState, PageHeader, SectionTitle, Skeleton } from '../../components/ui'
@@ -65,6 +65,13 @@ export function PertoDeVoce() {
         onChange={(v) => setParams(v === 'todos' ? {} : { especialidade: v }, { replace: true })}
         options={[{ value: 'todos', label: 'Todos' }, ...SPECIALTIES.map((s) => ({ value: s.value, label: s.label }))]}
       />
+
+      <Link
+        to={filter === 'todos' ? '/saude/comparar' : `/saude/comparar?especialidade=${filter}`}
+        className="btn-outline w-full sm:w-auto"
+      >
+        <Scale className="h-4 w-4" aria-hidden="true" /> Comparar acompanhamentos
+      </Link>
 
       {pros.isLoading ? (
         <Skeleton className="h-56" />

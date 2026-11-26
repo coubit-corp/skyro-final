@@ -64,7 +64,7 @@ export function Paciente() {
       <div className="card space-y-3 text-center">
         <p className="font-semibold">Este paciente não compartilha mais a rotina com você.</p>
         <p className="text-sm text-muted">Quando a pessoa revoga o acesso, os dados dela deixam de aparecer aqui.</p>
-        <Link to="/pro" className="btn-primary">Voltar para pacientes</Link>
+        <Link to="/pro/clientes" className="btn-primary">Voltar para clientes</Link>
       </div>
     )
   }
@@ -84,8 +84,8 @@ export function Paciente() {
 
   return (
     <section className="space-y-4">
-      <Link to="/pro" className="tap gap-1 text-sm font-semibold text-primary">
-        <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Pacientes
+      <Link to="/pro/clientes" className="tap gap-1 text-sm font-semibold text-primary">
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Clientes
       </Link>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">

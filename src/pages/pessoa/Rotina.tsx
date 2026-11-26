@@ -1,3 +1,4 @@
+import { AcompanhamentoTabs } from '../../components/AcompanhamentoTabs'
 import { Droplet, Dumbbell, Minus, Moon, Plus, Timer, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { DemoBanner } from '../../components/DemoBanner'
@@ -36,6 +37,7 @@ export function Rotina() {
 
   return (
     <section className="space-y-4">
+      <AcompanhamentoTabs />
       <PageHeader
         title={selected === todayIso ? 'Rotina de hoje' : 'Rotina'}
         subtitle={selected === todayIso ? undefined : longDate(selected)}
