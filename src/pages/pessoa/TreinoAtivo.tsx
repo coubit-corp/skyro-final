@@ -57,7 +57,10 @@ export function TreinoAtivo() {
     )
   }
 
+  // Enquanto envia (e depois de enviar), o que foi salvo é o que está na tela: nada mais muda.
+  const locked = save.isPending || save.isSuccess
   const update = (next: ActiveWorkout) => {
+    if (locked) return
     setWorkout(next)
     writeDraft(me, next)
     setError(null)
@@ -83,7 +86,7 @@ export function TreinoAtivo() {
           <p className="eyebrow">Treino</p>
           <h1 className="truncate text-xl font-bold">{workout.title}</h1>
         </div>
-        <button type="button" className="btn-primary shrink-0 px-5" disabled={save.isPending} onClick={conclude}>
+        <button type="button" className="btn-primary shrink-0 px-5" disabled={locked} onClick={conclude}>
           {save.isPending ? 'Salvando…' : 'Concluir'}
         </button>
       </header>
@@ -100,6 +103,7 @@ export function TreinoAtivo() {
         </p>
       )}
 
+      <fieldset disabled={locked} className="min-w-0 space-y-4">
       {workout.exercises.length === 0 && (
         <p className="card text-sm text-muted">Adicione o primeiro exercício para começar a registrar.</p>
       )}
@@ -270,6 +274,8 @@ export function TreinoAtivo() {
           Descartar treino
         </button>
       )}
+
+      </fieldset>
 
       {restLeft > 0 && (
         <div
