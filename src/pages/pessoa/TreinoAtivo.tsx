@@ -294,7 +294,7 @@ export function TreinoAtivo() {
 
       {picking && (
         <ExercisePicker
-          recent={recent}
+          done={recent}
           onClose={() => setPicking(false)}
           onPick={(e) => {
             update({ ...workout, exercises: [...workout.exercises, activeExercise(e)] })

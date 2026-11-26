@@ -387,7 +387,7 @@ export function exerciseStats(history: Workout[], name: string): ExerciseStats {
 }
 
 /** Exercícios já feitos, do mais recente para o mais antigo, sem repetir. */
-export function recentExercises(history: Workout[], limit = 8): CatalogExercise[] {
+export function recentExercises(history: Workout[], limit = Infinity): CatalogExercise[] {
   const seen = new Set<string>()
   const out: CatalogExercise[] = []
   for (const w of history) {

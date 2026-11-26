@@ -189,7 +189,7 @@ function Editor({ routine }: { routine?: Routine }) {
 
       {picking && (
         <ExercisePicker
-          recent={recent}
+          done={recent}
           onClose={() => setPicking(false)}
           onPick={(e) => {
             setExercises((l) => [...l, newRoutineExercise(e)])

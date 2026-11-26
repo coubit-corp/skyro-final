@@ -16,11 +16,12 @@ const FILTERS: { value: Muscle | 'todos'; label: string }[] = [{ value: 'todos',
 
 /** Escolher um exercício da lista (com busca e filtro por músculo) ou criar um novo. */
 export function ExercisePicker({
-  recent,
+  done,
   onPick,
   onClose,
 }: {
-  recent: CatalogExercise[]
+  /** Todos os exercícios que a pessoa já fez, do mais recente para o mais antigo. */
+  done: CatalogExercise[]
   onPick: (e: CatalogExercise) => void
   onClose: () => void
 }) {
@@ -32,8 +33,9 @@ export function ExercisePicker({
   // Os que a pessoa já fez (inclusive os que ela criou) entram na busca junto com a lista.
   const all = useMemo(() => {
     const known = new Set(EXERCISE_CATALOG.map((e) => normalizeName(e.name)))
-    return [...recent.filter((e) => !known.has(normalizeName(e.name))), ...EXERCISE_CATALOG]
-  }, [recent])
+    return [...done.filter((e) => !known.has(normalizeName(e.name))), ...EXERCISE_CATALOG]
+  }, [done])
+  const recent = done.slice(0, 8)
   const results = searchExercises(all, query, muscle)
   const browsing = !query.trim() && muscle === 'todos'
   const name = query.trim().slice(0, EXERCISE_NAME_MAX)
