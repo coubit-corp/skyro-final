@@ -7,7 +7,8 @@ import { toPost, type CommunityAuthor, type CommunityPostRow, type CommunityTopi
 import { toGalleryJpeg } from '../lib/image'
 import { COMMUNITY_BUCKET, supabase } from '../lib/supabase'
 
-const FEED_LIMIT = 50
+/** Posts por página do feed; "Ver posts mais antigos" busca mais uma página. */
+export const FEED_PAGE = 50
 
 function fail(error: { message: string } | null) {
   if (error) throw new Error(error.message)
@@ -26,10 +27,12 @@ async function fetchAuthors(ids: string[]): Promise<Map<string, CommunityAuthor>
 }
 
 /** Últimos posts (de um tema, ou todos), com autor, curtidas e número de comentários. */
-export function useFeed(topic: CommunityTopic | null) {
+export function useFeed(topic: CommunityTopic | null, limit: number = FEED_PAGE) {
   const me = useMe()
   return useQuery({
-    queryKey: ['community', 'feed', topic, me],
+    queryKey: ['community', 'feed', topic, limit, me],
+    // Ao pedir mais posts do mesmo tema, mantém os já carregados na tela
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[2] === topic ? prev : undefined),
     enabled: Boolean(me),
     refetchInterval: 30_000,
     queryFn: async () => {
@@ -37,13 +40,13 @@ export function useFeed(topic: CommunityTopic | null) {
         .from('community_posts')
         .select('id, author_id, topic, body, photos, created_at, community_likes(user_id), community_comments(count)')
         .order('created_at', { ascending: false })
-        .limit(FEED_LIMIT)
+        .limit(limit)
       if (topic) q = q.eq('topic', topic)
       const { data, error } = await q
       fail(error)
       const posts = ((data ?? []) as CommunityPostRow[]).map((r) => toPost(r, me!))
       const authors = await fetchAuthors([...new Set(posts.map((p) => p.authorId))])
-      return { posts, authors }
+      return { posts, authors, hasMore: posts.length === limit }
     },
   })
 }

@@ -10,6 +10,7 @@ import {
   useCreatePost,
   useDeleteComment,
   useDeletePost,
+  FEED_PAGE,
   useFeed,
   useReportPost,
   useToggleLike,
@@ -33,13 +34,18 @@ import { communityUrl } from '../lib/supabase'
 export function Comunidade() {
   // "Geral" mostra o feed inteiro; os outros temas filtram.
   const [filter, setFilter] = useState<CommunityTopic>('geral')
-  const feed = useFeed(filter === 'geral' ? null : filter)
+  const [limit, setLimit] = useState(FEED_PAGE)
+  const feed = useFeed(filter === 'geral' ? null : filter, limit)
 
   return (
     <section className="space-y-4">
       <PageHeader title="Comunidade" subtitle="Troque experiências, dicas e conquistas com pessoas e profissionais." />
       <Composer defaultTopic={filter} />
-      <ChipTabs options={TOPICS} value={filter} onChange={setFilter} label="Filtrar por tema" />
+      <ChipTabs options={TOPICS} value={filter} onChange={(t) => {
+          setFilter(t)
+          setLimit(FEED_PAGE)
+        }}
+        label="Filtrar por tema" />
 
       {feed.isLoading ? (
         <div className="space-y-3">
@@ -60,6 +66,15 @@ export function Comunidade() {
             </li>
           ))}
         </ul>
+      )}
+      {feed.data?.hasMore && (
+        <button
+          className="btn-outline w-full"
+          disabled={feed.isFetching}
+          onClick={() => setLimit((n) => n + FEED_PAGE)}
+        >
+          {feed.isFetching ? 'Carregando…' : 'Ver posts mais antigos'}
+        </button>
       )}
       <p className="text-xs text-muted">
         Dicas da comunidade não substituem a orientação do seu profissional. Em caso de urgência, ligue 192 (SAMU).
