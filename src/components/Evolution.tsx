@@ -98,7 +98,7 @@ export function EvolutionTimeline() {
         <>
           <ul className="card divide-y divide-line py-1">
             {items.slice(0, shown).map((i) => (
-              <TimelineRow key={i.key} item={i} todayIso={todayIso} canDelete={!demo} />
+              <TimelineRow key={i.key} item={i} todayIso={todayIso} canDelete={!demo || Boolean(i.logged)} />
             ))}
           </ul>
           {items.length > shown && (

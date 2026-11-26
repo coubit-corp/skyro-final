@@ -51,7 +51,7 @@ delete from history_entries where source_key = 'k2';
 
 \echo '== Demo =='
 set request.jwt.claim.sub = 'd0000000-0000-4000-8000-000000000001';
-\echo '-- pessoa demo ve o seed (esperado 4):'
+\echo '-- pessoa demo ve o seed (esperado 6: 4 trazidos de fora + 2 registrados no app):'
 select count(*) from history_entries;
 \echo '-- conta demo e publica: nao grava (deve FALHAR):'
 insert into history_entries (kind, occurred_on, title, source) values ('marco', current_date, 'meu marco', 'manual');

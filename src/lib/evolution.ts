@@ -33,6 +33,8 @@ export interface EvolutionItem {
   origin?: string
   /** Id em history_entries, quando a pessoa pode apagar. */
   entryId?: string
+  /** true = a própria pessoa registrou série a série na Skyro (não é importado nem exemplo da demo). */
+  logged?: boolean
 }
 
 export interface HistoryEntry {
@@ -41,7 +43,8 @@ export interface HistoryEntry {
   occurred_on: string
   title: string
   details: { duration_min?: number; exercises?: ImportedExercise[] } | null
-  source: 'hevy' | 'manual'
+  source: 'hevy' | 'manual' | 'skyro'
+  source_key?: string
 }
 
 export interface EvolutionSources {
@@ -99,8 +102,9 @@ export function buildTimeline(s: EvolutionSources, todayIso: string): EvolutionI
       date: h.occurred_on,
       title: h.title,
       subtitle: h.kind === 'treino' ? workoutSummary(h.details) || undefined : undefined,
-      origin: h.source === 'hevy' ? 'Importado do Hevy' : 'Adicionado por você',
+      origin: h.source === 'hevy' ? 'Importado do Hevy' : h.source === 'manual' ? 'Adicionado por você' : undefined,
       entryId: h.id,
+      logged: h.source === 'skyro' && !h.source_key?.startsWith('demo-skyro-'),
     })
   }
   // O "treino feito" do dia só entra se não houver um treino importado na mesma data.

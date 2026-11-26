@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { AdjustmentCard } from '../../components/Adjustments'
 import { Avatar } from '../../components/Avatar'
 import { DemoBanner } from '../../components/DemoBanner'
+import { MyWorkouts } from '../../components/MyWorkouts'
 import { CheckButton, ErrorState, PageHeader, Skeleton } from '../../components/ui'
 import {
   useMyPlan,
@@ -71,6 +72,7 @@ export function Plano() {
         ) : (
           <TabContent tab={current} plan={plan.data!} />
         )}
+        {current.tab === 'treino' && <MyWorkouts />}
       </div>
 
       <DemoBanner />

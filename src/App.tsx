@@ -40,6 +40,9 @@ const PerfilProfissional = lazy(() =>
 const Comparar = lazy(() => import('./pages/pessoa/Comparar').then((m) => ({ default: m.Comparar })))
 const PertoDeVoce = lazy(() => import('./pages/pessoa/PertoDeVoce').then((m) => ({ default: m.PertoDeVoce })))
 const Plano = lazy(() => import('./pages/pessoa/Plano').then((m) => ({ default: m.Plano })))
+const TreinoMontar = lazy(() => import('./pages/pessoa/TreinoMontar').then((m) => ({ default: m.TreinoMontar })))
+const TreinoAtivo = lazy(() => import('./pages/pessoa/TreinoAtivo').then((m) => ({ default: m.TreinoAtivo })))
+const Exercicio = lazy(() => import('./pages/pessoa/Exercicio').then((m) => ({ default: m.Exercicio })))
 const Progresso = lazy(() => import('./pages/pessoa/Progresso').then((m) => ({ default: m.Progresso })))
 const ResumoSemana = lazy(() => import('./pages/pessoa/ResumoSemana').then((m) => ({ default: m.ResumoSemana })))
 const Rotina = lazy(() => import('./pages/pessoa/Rotina').then((m) => ({ default: m.Rotina })))
@@ -137,6 +140,10 @@ export default function App() {
                 <Route path="/saude/mensagens" element={<Navigate to="/mensagens" replace />} />
                 <Route path="/rotina" element={<Rotina />} />
                 <Route path="/plano" element={<Plano />} />
+                <Route path="/plano/treino" element={<TreinoAtivo />} />
+                <Route path="/plano/treinos/novo" element={<TreinoMontar />} />
+                <Route path="/plano/treinos/:id" element={<TreinoMontar />} />
+                <Route path="/plano/exercicio/:nome" element={<Exercicio />} />
                 <Route path="/perfil" element={<Navigate to="/configuracoes" replace />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
                 <Route path="/progresso" element={<Progresso />} />
