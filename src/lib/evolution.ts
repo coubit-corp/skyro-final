@@ -128,7 +128,8 @@ export function buildTimeline(s: EvolutionSources, todayIso: string): EvolutionI
     })
   }
   for (const c of s.challenges) {
-    if (c.starts_on > todayIso) continue
+    // Rodada que ainda não começou, ou que a pessoa deixou antes de começar, não faz parte da história.
+    if (c.starts_on > todayIso || (c.leftOn && c.leftOn < c.starts_on)) continue
     const ended = c.ends_on < todayIso
     items.push({
       key: `c-${c.id}`,

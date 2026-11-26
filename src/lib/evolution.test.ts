@@ -45,6 +45,10 @@ describe('linha do tempo da evolução', () => {
     ).find((i) => i.kind === 'desafio')
     expect(left).toMatchObject({ date: '2026-11-18', subtitle: 'Você saiu desta rodada' })
   })
+  it('desistir antes de a rodada começar não entra na história', () => {
+    const t2 = buildTimeline({ ...base, challenges: [{ ...base.challenges[0], leftOn: '2026-11-14' }] }, TODAY)
+    expect(t2.some((i) => i.kind === 'desafio')).toBe(false)
+  })
   it('descreve refeição e ajuste', () => {
     expect(t.find((i) => i.kind === 'alimentacao')?.subtitle).toBe('Substituí · troquei o arroz')
     expect(t.find((i) => i.kind === 'meta')).toMatchObject({
