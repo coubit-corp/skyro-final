@@ -1,7 +1,7 @@
 // Comunidade: feed com temas, fotos, comentários e curtidas. Quem vê e escreve
 // o quê é o banco que decide (RLS); aqui só buscamos e enviamos.
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/auth-context'
 import { toPost, type CommunityAuthor, type CommunityPostRow, type CommunityTopic } from '../lib/community'
 import { toGalleryJpeg } from '../lib/image'
@@ -26,28 +26,29 @@ async function fetchAuthors(ids: string[]): Promise<Map<string, CommunityAuthor>
   return new Map(((data ?? []) as CommunityAuthor[]).map((a) => [a.id, a]))
 }
 
-/** Últimos posts (de um tema, ou todos), com autor, curtidas e número de comentários. */
-export function useFeed(topic: CommunityTopic | null, limit: number = FEED_PAGE) {
+/** Feed paginado (de um tema, ou todos), com autor, curtidas e número de comentários. */
+export function useFeed(topic: CommunityTopic | null) {
   const me = useMe()
-  return useQuery({
-    queryKey: ['community', 'feed', topic, limit, me],
-    // Ao pedir mais posts do mesmo tema, mantém os já carregados na tela
-    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[2] === topic ? prev : undefined),
+  return useInfiniteQuery({
+    queryKey: ['community', 'feed', topic, me],
     enabled: Boolean(me),
     refetchInterval: 30_000,
-    queryFn: async () => {
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
       let q = supabase
         .from('community_posts')
         .select('id, author_id, topic, body, photos, created_at, community_likes(user_id), community_comments(count)')
         .order('created_at', { ascending: false })
-        .limit(limit)
+        .limit(FEED_PAGE)
       if (topic) q = q.eq('topic', topic)
+      if (pageParam) q = q.lt('created_at', pageParam)
       const { data, error } = await q
       fail(error)
       const posts = ((data ?? []) as CommunityPostRow[]).map((r) => toPost(r, me!))
       const authors = await fetchAuthors([...new Set(posts.map((p) => p.authorId))])
-      return { posts, authors, hasMore: posts.length === limit }
+      return { posts, authors, next: posts.length === FEED_PAGE ? posts[posts.length - 1].createdAt : null }
     },
+    getNextPageParam: (last) => last.next,
   })
 }
 

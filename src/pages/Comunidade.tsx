@@ -10,7 +10,6 @@ import {
   useCreatePost,
   useDeleteComment,
   useDeletePost,
-  FEED_PAGE,
   useFeed,
   useReportPost,
   useToggleLike,
@@ -34,18 +33,15 @@ import { communityUrl } from '../lib/supabase'
 export function Comunidade() {
   // "Geral" mostra o feed inteiro; os outros temas filtram.
   const [filter, setFilter] = useState<CommunityTopic>('geral')
-  const [limit, setLimit] = useState(FEED_PAGE)
-  const feed = useFeed(filter === 'geral' ? null : filter, limit)
+  const feed = useFeed(filter === 'geral' ? null : filter)
+  const posts = feed.data?.pages.flatMap((pg) => pg.posts) ?? []
+  const authors = new Map(feed.data?.pages.flatMap((pg) => [...pg.authors]) ?? [])
 
   return (
     <section className="space-y-4">
       <PageHeader title="Comunidade" subtitle="Troque experiências, dicas e conquistas com pessoas e profissionais." />
       <Composer defaultTopic={filter} />
-      <ChipTabs options={TOPICS} value={filter} onChange={(t) => {
-          setFilter(t)
-          setLimit(FEED_PAGE)
-        }}
-        label="Filtrar por tema" />
+      <ChipTabs options={TOPICS} value={filter} onChange={setFilter} label="Filtrar por tema" />
 
       {feed.isLoading ? (
         <div className="space-y-3">
@@ -54,26 +50,22 @@ export function Comunidade() {
         </div>
       ) : feed.error ? (
         <ErrorState message={feed.error.message} onRetry={() => feed.refetch()} />
-      ) : feed.data!.posts.length === 0 ? (
+      ) : posts.length === 0 ? (
         <div className="card text-center text-sm text-muted">
           Ainda não tem nada {filter === 'geral' ? 'por aqui' : `em ${topicLabel(filter)}`}. Que tal começar a conversa?
         </div>
       ) : (
         <ul className="space-y-3">
-          {feed.data!.posts.map((p) => (
+          {posts.map((p) => (
             <li key={p.id}>
-              <PostCard post={p} author={feed.data!.authors.get(p.authorId)} />
+              <PostCard post={p} author={authors.get(p.authorId)} />
             </li>
           ))}
         </ul>
       )}
-      {feed.data?.hasMore && (
-        <button
-          className="btn-outline w-full"
-          disabled={feed.isFetching}
-          onClick={() => setLimit((n) => n + FEED_PAGE)}
-        >
-          {feed.isFetching ? 'Carregando…' : 'Ver posts mais antigos'}
+      {feed.hasNextPage && (
+        <button className="btn-outline w-full" disabled={feed.isFetchingNextPage} onClick={() => feed.fetchNextPage()}>
+          {feed.isFetchingNextPage ? 'Carregando…' : 'Ver posts mais antigos'}
         </button>
       )}
       <p className="text-xs text-muted">
