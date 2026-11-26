@@ -66,3 +66,12 @@ grant update (rating, comment) on public.professional_reviews to authenticated;
 revoke insert, update, delete on public.messages from authenticated, anon;
 grant insert (person_id, professional_id, sender_id, body) on public.messages to authenticated;
 grant update (read_at) on public.messages to authenticated;
+
+-- Restrições novas: o UPDATE dessas tabelas é liberado pelo RLS para a pessoa,
+-- mas ela só deve mexer na coluna que a tela usa.
+-- tips: a pessoa só marca como lida (não reescreve a dica nem troca o autor).
+revoke update on public.tips from authenticated, anon;
+grant update (read_at) on public.tips to authenticated;
+-- shares: a pessoa só encerra o compartilhamento (não troca o profissional).
+revoke update on public.shares from authenticated, anon;
+grant update (revoked_at) on public.shares to authenticated;
