@@ -72,3 +72,12 @@ select set_config('request.jwt.claims', '{"sub":"d0000000-0000-4000-8000-0000000
 delete from public.history_entries where source = 'skyro' and source_key like 'demo-skyro-%';
 select count(*) as exemplos_continuam_2 from public.history_entries where source = 'skyro' and source_key like 'demo-skyro-%';
 reset role;
+
+-- Treino do app com formato torto não entra (falha nos quatro).
+set role authenticated;
+insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{}', 'skyro');
+insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{"exercises":"oi"}', 'skyro');
+insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{"exercises":[{"name":"a","sets":{}}]}', 'skyro');
+insert into public.history_entries (kind, occurred_on, title, details, source) values ('treino', current_date - 1, 'x', '{"exercises":[{"name":"a","sets":[{"reps":"dez"}]}]}', 'skyro');
+select count(*) as tortos_0 from public.history_entries where title = 'x';
+reset role;

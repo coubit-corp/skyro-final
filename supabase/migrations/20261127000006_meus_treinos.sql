@@ -72,6 +72,48 @@ alter table public.history_entries drop constraint if exists history_entries_sky
 alter table public.history_entries
   add constraint history_entries_skyro_e_treino check (source <> 'skyro' or kind = 'treino');
 
+-- O treino registrado no app tem formato fixo: a tela de história lê exercícios e séries
+-- direto daqui, e na conta demo (login público) um registro torto quebraria a tela de todos.
+create or replace function public.workout_details_ok(d jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  e jsonb;
+  s jsonb;
+begin
+  if jsonb_typeof(d) is distinct from 'object' or jsonb_typeof(d -> 'exercises') is distinct from 'array' then
+    return false;
+  end if;
+  if jsonb_array_length(d -> 'exercises') not between 1 and 30 then return false; end if;
+  if d ? 'duration_min' and jsonb_typeof(d -> 'duration_min') <> 'number' then return false; end if;
+  for e in select * from jsonb_array_elements(d -> 'exercises') loop
+    if jsonb_typeof(e) <> 'object'
+       or jsonb_typeof(e -> 'name') is distinct from 'string'
+       or length(btrim(e ->> 'name')) not between 1 and 80
+       or (e ? 'note' and (jsonb_typeof(e -> 'note') <> 'string' or length(e ->> 'note') > 200))
+       or jsonb_typeof(e -> 'sets') is distinct from 'array' then
+      return false;
+    end if;
+    if jsonb_array_length(e -> 'sets') not between 1 and 20 then return false; end if;
+    for s in select * from jsonb_array_elements(e -> 'sets') loop
+      if jsonb_typeof(s) <> 'object'
+         or coalesce(jsonb_typeof(s -> 'reps'), 'null') not in ('number', 'null')
+         or coalesce(jsonb_typeof(s -> 'weight_kg'), 'null') not in ('number', 'null') then
+        return false;
+      end if;
+    end loop;
+  end loop;
+  return true;
+end;
+$$;
+
+alter table public.history_entries drop constraint if exists history_entries_skyro_formato;
+alter table public.history_entries
+  add constraint history_entries_skyro_formato check (source <> 'skyro' or public.workout_details_ok(details));
+
 drop policy if exists "history_entries: criar" on public.history_entries;
 drop policy if exists "history_entries: apagar" on public.history_entries;
 
