@@ -3,6 +3,7 @@
 
 import { addDays, longDate } from './dates'
 import type { ImportedExercise } from './hevy'
+import { isRunDetails, runSummary } from './running'
 
 export type EvolutionKind = 'treino' | 'alimentacao' | 'meta' | 'desafio' | 'marco'
 export type EvolutionPeriod = '7' | '30' | 'tudo'
@@ -43,7 +44,7 @@ export interface HistoryEntry {
   occurred_on: string
   title: string
   details: { duration_min?: number; exercises?: ImportedExercise[] } | null
-  source: 'hevy' | 'manual' | 'skyro'
+  source: 'hevy' | 'manual' | 'skyro' | 'corrida'
   source_key?: string
 }
 
@@ -58,8 +59,15 @@ export interface EvolutionSources {
 
 const kg = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
 
+function runOrigin(details: HistoryEntry['details']): string | undefined {
+  if (!isRunDetails(details)) return undefined
+  return details.origin === 'manual' ? 'Registrado por você' : `Importado de arquivo ${details.origin.toUpperCase()}`
+}
+
 /** "2 exercícios · 5 séries · maior carga 50 kg · 52 min" */
 export function workoutSummary(details: HistoryEntry['details']): string {
+  // Corrida, caminhada ou pedal importados de GPX/TCX ou registrados à mão.
+  if (isRunDetails(details)) return runSummary(details)
   const exercises = details?.exercises ?? []
   const sets = exercises.flatMap((e) => e.sets)
   const top = Math.max(0, ...sets.map((s) => s.weight_kg ?? 0))
@@ -102,9 +110,17 @@ export function buildTimeline(s: EvolutionSources, todayIso: string): EvolutionI
       date: h.occurred_on,
       title: h.title,
       subtitle: h.kind === 'treino' ? workoutSummary(h.details) || undefined : undefined,
-      origin: h.source === 'hevy' ? 'Importado do Hevy' : h.source === 'manual' ? 'Adicionado por você' : undefined,
+      origin:
+        h.source === 'hevy'
+          ? 'Importado do Hevy'
+          : h.source === 'manual'
+            ? 'Adicionado por você'
+            : h.source === 'corrida'
+              ? runOrigin(h.details)
+              : undefined,
       entryId: h.id,
-      logged: h.source === 'skyro' && !h.source_key?.startsWith('demo-skyro-'),
+      // Registrado por quem está usando (pode apagar mesmo na conta demo); os exemplos do seed ficam.
+      logged: (h.source === 'skyro' || h.source === 'corrida') && !h.source_key?.startsWith('demo-'),
     })
   }
   // O "treino feito" do dia só entra se não houver um treino importado na mesma data.

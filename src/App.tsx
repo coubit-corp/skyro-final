@@ -44,6 +44,7 @@ const TreinoMontar = lazy(() => import('./pages/pessoa/TreinoMontar').then((m) =
 const TreinoAtivo = lazy(() => import('./pages/pessoa/TreinoAtivo').then((m) => ({ default: m.TreinoAtivo })))
 const Exercicio = lazy(() => import('./pages/pessoa/Exercicio').then((m) => ({ default: m.Exercicio })))
 const Exercicios = lazy(() => import('./pages/pessoa/Exercicios').then((m) => ({ default: m.Exercicios })))
+const Corrida = lazy(() => import('./pages/pessoa/Corrida').then((m) => ({ default: m.Corrida })))
 const Progresso = lazy(() => import('./pages/pessoa/Progresso').then((m) => ({ default: m.Progresso })))
 const ResumoSemana = lazy(() => import('./pages/pessoa/ResumoSemana').then((m) => ({ default: m.ResumoSemana })))
 const Rotina = lazy(() => import('./pages/pessoa/Rotina').then((m) => ({ default: m.Rotina })))
@@ -146,6 +147,7 @@ export default function App() {
                 <Route path="/plano/treinos/:id" element={<TreinoMontar />} />
                 <Route path="/plano/exercicio/:nome" element={<Exercicio />} />
                 <Route path="/plano/exercicios" element={<Exercicios />} />
+                <Route path="/plano/corrida" element={<Corrida />} />
                 <Route path="/perfil" element={<Navigate to="/configuracoes" replace />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
                 <Route path="/progresso" element={<Progresso />} />
