@@ -196,6 +196,8 @@ export interface PlanCheck {
   created_at: string
   outcome: PlanOutcome
   note: string | null
+  /** Versão adaptada do treino que a pessoa fez (null = a normal). */
+  adaptation?: 'curto' | 'sem_equipamento' | 'leve' | null
 }
 
 /** Mensagem entre a pessoa e um profissional com compartilhamento ativo. */
