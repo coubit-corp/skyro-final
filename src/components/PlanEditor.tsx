@@ -5,6 +5,7 @@ import {
   usePatientPlan,
   useSavePlanItem,
   useSaveAdaptations,
+  useMealPhotoUrls,
   useSavePlanNote,
   type PatientPlan,
 } from '../hooks/usePlanData'
@@ -24,6 +25,11 @@ import {
   PLAN_NOTE_MAX,
   tabForKind,
   TITLE_MAX,
+  hasNutrition,
+  macrosLabel,
+  mealDays,
+  sumMacros,
+  itemsForDay,
   toPlanItemRow,
   validatePlanItem,
   WEEKDAYS,
@@ -88,7 +94,7 @@ export function PlanEditor({
         <>
           {kind === 'fisio' && <PainWeek logs={logs} days={[...week.slice(1), todayIso]} />}
 
-          {kind === 'refeicao' && <MealExceptions items={plan.data!.items} checks={plan.data!.checks} />}
+          {kind === 'refeicao' && <NutritionView items={plan.data!.items} checks={plan.data!.checks} days={[...week.slice(1), todayIso]} />}
 
           {kind === 'treino' && plan.data!.adaptations !== undefined && (
             <AdaptationSettings
@@ -116,6 +122,15 @@ export function PlanEditor({
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{i.title}</p>
                       <p className="text-sm text-muted">{[weekdaysLabel(i.weekdays), detail].filter(Boolean).join(' · ')}</p>
+                      {macrosLabel(i) && (
+                        <p className="text-xs text-muted">
+                          {macrosLabel(i)}
+                          {i.show_macros ? ' · a pessoa vê' : ' · só você vê'}
+                        </p>
+                      )}
+                      {(i.alternatives?.length ?? 0) > 0 && (
+                        <p className="text-xs text-muted">Substituições: {i.alternatives!.join(', ')}</p>
+                      )}
                       {i.notes && <p className="text-xs text-muted">{i.notes}</p>}
                       {i.video_url && (
                         <p className="inline-flex items-center gap-1 text-xs text-muted">
@@ -281,7 +296,10 @@ function ItemModal({
     setErrors(errs)
     if (Object.keys(errs).length) return
     try {
-      await save.mutateAsync({ id: item?.id, row: toPlanItemRow(kind, v), position: item?.position ?? nextPosition })
+      // Calorias, macros e substituições só vão quando usadas (agora ou antes): sem a migration
+      // de nutrição no banco, salvar uma refeição comum continua funcionando.
+      const withNutrition = hasNutrition(v) || hasNutrition(initialPlanValues(item))
+      await save.mutateAsync({ id: item?.id, row: toPlanItemRow(kind, v, withNutrition), position: item?.position ?? nextPosition })
       onClose()
     } catch {
       /* a mensagem aparece no formulário */
@@ -354,6 +372,41 @@ function ItemModal({
                 <textarea {...p} className="input min-h-20 resize-y" maxLength={FOODS_MAX} placeholder="Ex.: Arroz, feijão, frango grelhado e salada" value={v.foods} onChange={(e) => set({ foods: e.target.value })} />
               )}
             </Field>
+            <Field label="Substituições sugeridas (opcional, uma por linha)" error={errors.alternatives}>
+              {(p) => (
+                <textarea
+                  {...p}
+                  className="input min-h-16 resize-y"
+                  placeholder={'Ex.: Macarrão com carne moída\nOmelete com salada'}
+                  value={v.alternatives}
+                  onChange={(e) => set({ alternatives: e.target.value })}
+                />
+              )}
+            </Field>
+            <fieldset className="space-y-2">
+              <legend className="eyebrow mb-1">Calorias e macros (opcional)</legend>
+              <div className="grid grid-cols-4 gap-2">
+                <Field label="kcal" error={errors.kcal}>
+                  {(p) => <input {...p} className="input px-2" inputMode="numeric" placeholder="600" value={v.kcal} onChange={(e) => set({ kcal: e.target.value })} />}
+                </Field>
+                <Field label="Proteína (g)" error={errors.protein}>
+                  {(p) => <input {...p} className="input px-2" inputMode="decimal" placeholder="40" value={v.protein} onChange={(e) => set({ protein: e.target.value })} />}
+                </Field>
+                <Field label="Carbo (g)" error={errors.carbs}>
+                  {(p) => <input {...p} className="input px-2" inputMode="decimal" placeholder="70" value={v.carbs} onChange={(e) => set({ carbs: e.target.value })} />}
+                </Field>
+                <Field label="Gordura (g)" error={errors.fat}>
+                  {(p) => <input {...p} className="input px-2" inputMode="decimal" placeholder="15" value={v.fat} onChange={(e) => set({ fat: e.target.value })} />}
+                </Field>
+              </div>
+              <label className="flex min-h-11 items-start gap-3 text-sm">
+                <input type="checkbox" className="mt-1 h-4 w-4" checked={v.showMacros} onChange={(e) => set({ showMacros: e.target.checked })} />
+                <span>
+                  Mostrar esses números para a pessoa
+                  <span className="block text-xs text-muted">Desmarcado, só você vê. Use se fizer sentido para o objetivo dela.</span>
+                </span>
+              </label>
+            </fieldset>
           </>
         )}
 
@@ -510,25 +563,122 @@ function AdaptationSettings({
   )
 }
 
-/** Substituições e refeições que não deram certo nos últimos dias: é onde o profissional pode ajudar. */
-function MealExceptions({ items, checks }: { items: PlanItem[]; checks: PatientPlan['checks'] }) {
+/**
+ * Visão da nutricionista: calorias e macros planejados para hoje, como cada dia da
+ * semana foi registrado e as substituições, dificuldades e fotos recentes.
+ */
+function NutritionView({ items, checks, days }: { items: PlanItem[]; checks: PatientPlan['checks']; days: string[] }) {
   const titles = new Map(items.map((i) => [i.id, i.title]))
+  const todayIso = days[days.length - 1]
+  const todayTotals = sumMacros(itemsForDay(items, todayIso))
+  const hasMacros = items.some((i) => macrosLabel(i))
+  const week = mealDays(items, checks, days)
   const rows = checks
-    .filter((c) => c.outcome !== 'feito' && titles.has(c.item_id))
+    .filter((c) => titles.has(c.item_id) && (c.outcome !== 'feito' || c.photo_path))
     .sort((a, b) => b.check_date.localeCompare(a.check_date))
-  if (rows.length === 0) return null
+  const photos = useMealPhotoUrls(rows.map((c) => c.photo_path).filter((p): p is string => Boolean(p)))
+  const [open, setOpen] = useState<string | null>(null)
+  const g = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+
   return (
-    <div className="rounded-xl bg-surface px-3 py-3">
-      <p className="text-sm font-semibold">Substituições e dificuldades recentes</p>
-      <ul className="mt-2 space-y-1.5 text-sm">
-        {rows.map((c) => (
-          <li key={`${c.item_id}|${c.check_date}`}>
-            <span className="text-muted">{weekdayShort(c.check_date)} {dayOfMonth(c.check_date)} · </span>
-            <span className="font-semibold">{titles.get(c.item_id)}</span>: {OUTCOME_LABEL[c.outcome].toLowerCase()}
-            {c.note && <span className="text-muted"> — “{c.note}”</span>}
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-3">
+      {hasMacros && (
+        <div className="rounded-xl bg-surface px-3 py-3 text-sm">
+          <p className="font-semibold">Planejado para hoje</p>
+          <p className="text-muted">
+            {todayTotals.kcal} kcal · Proteína {g(todayTotals.protein)} g · Carboidrato {g(todayTotals.carbs)} g · Gordura{' '}
+            {g(todayTotals.fat)} g
+          </p>
+        </div>
+      )}
+
+      {week.some((d) => d.planned > 0) && (
+        <div className="rounded-xl bg-surface px-3 py-3">
+          <p className="text-sm font-semibold">Últimos 7 dias</p>
+          <p className="text-xs text-muted">Sem registro não quer dizer que a pessoa não comeu: vale perguntar.</p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-muted">
+                <tr>
+                  <th className="py-1 font-semibold">Dia</th>
+                  <th className="py-1 font-semibold">
+                    <abbr title="Como planejado">Plan.</abbr>
+                  </th>
+                  <th className="py-1 font-semibold">
+                    <abbr title="Substituiu">Subst.</abbr>
+                  </th>
+                  <th className="py-1 font-semibold">
+                    <abbr title="Não conseguiu">Não</abbr>
+                  </th>
+                  <th className="py-1 font-semibold">
+                    <abbr title="Sem registro">S/ reg.</abbr>
+                  </th>
+                  {hasMacros && <th className="py-1 font-semibold">kcal</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {week.map((d) => (
+                  <tr key={d.date} className="border-t border-line">
+                    <td className="py-1.5 whitespace-nowrap">
+                      {weekdayShort(d.date)} {dayOfMonth(d.date)}
+                    </td>
+                    <td>{d.planned ? `${d.asPlanned}/${d.planned}` : '—'}</td>
+                    <td>{d.substituted || '—'}</td>
+                    <td>{d.missed || '—'}</td>
+                    <td>{d.unknown || '—'}</td>
+                    {hasMacros && <td>{d.kcalPlanned ? `${d.kcalAsPlanned} de ${d.kcalPlanned}` : '—'}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            Plan.: como planejado · Subst.: substituiu · Não: não conseguiu · S/ reg.: sem registro
+            {hasMacros && ' · kcal: das refeições feitas como planejado, de quanto foi planejado'}
+          </p>
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="rounded-xl bg-surface px-3 py-3">
+          <p className="text-sm font-semibold">Substituições, dificuldades e fotos recentes</p>
+          <ul className="mt-2 space-y-2 text-sm">
+            {rows.map((c) => {
+              const url = c.photo_path ? photos.data?.get(c.photo_path) : undefined
+              return (
+                <li key={`${c.item_id}|${c.check_date}`} className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-muted">
+                      {weekdayShort(c.check_date)} {dayOfMonth(c.check_date)} ·{' '}
+                    </span>
+                    <span className="font-semibold">{titles.get(c.item_id)}</span>: {OUTCOME_LABEL[c.outcome].toLowerCase()}
+                    {c.note && <span className="text-muted"> — “{c.note}”</span>}
+                  </div>
+                  {url && (
+                    <button
+                      type="button"
+                      onClick={() => setOpen(url)}
+                      className="h-12 w-12 shrink-0 overflow-hidden rounded-lg"
+                      aria-label={`Ver foto de ${titles.get(c.item_id)}`}
+                    >
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
+      {open && (
+        <Modal open onClose={() => setOpen(null)} title="Foto da refeição" wide>
+          <img src={open} alt="Foto da refeição enviada pela pessoa" className="max-h-[70vh] w-full rounded-xl object-contain" />
+          <button type="button" className="btn-outline w-full" onClick={() => setOpen(null)}>
+            Fechar
+          </button>
+        </Modal>
+      )}
     </div>
   )
 }

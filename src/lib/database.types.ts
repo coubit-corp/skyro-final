@@ -178,6 +178,15 @@ export interface PlanItem {
   position: number
   created_at: string
   updated_at: string
+  /** Refeição: calorias e macros opcionais (ausentes antes da migration de nutrição). */
+  kcal?: number | null
+  protein_g?: number | null
+  carbs_g?: number | null
+  fat_g?: number | null
+  /** A pessoa vê calorias e macros desta refeição. */
+  show_macros?: boolean
+  /** Substituições sugeridas pela nutricionista. */
+  alternatives?: string[]
 }
 
 export interface PlanNote {
@@ -198,6 +207,8 @@ export interface PlanCheck {
   note: string | null
   /** Versão adaptada do treino que a pessoa fez (null = a normal). */
   adaptation?: 'curto' | 'sem_equipamento' | 'leve' | null
+  /** Foto do que a pessoa comeu: <pessoa>/<nutricionista>/<arquivo>.jpg no bucket meal-photos. */
+  photo_path?: string | null
 }
 
 /** Mensagem entre a pessoa e um profissional com compartilhamento ativo. */

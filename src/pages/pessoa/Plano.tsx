@@ -1,5 +1,6 @@
+import { useAuth } from '../../auth/auth-context'
 import { AcompanhamentoTabs } from '../../components/AcompanhamentoTabs'
-import { CalendarDays, PlayCircle, Search } from 'lucide-react'
+import { CalendarDays, Camera, PlayCircle, Search, Star } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AdjustmentCard } from '../../components/Adjustments'
@@ -9,6 +10,10 @@ import { MyWorkouts } from '../../components/MyWorkouts'
 import { CheckButton, ErrorState, PageHeader, Skeleton } from '../../components/ui'
 import {
   adaptationsFor,
+  useAddMealFavorite,
+  useMealFavorites,
+  useMealPhoto,
+  useMealPhotoUrls,
   useMyPlan,
   useSetPain,
   useSetPlanCheck,
@@ -24,6 +29,7 @@ import {
   CHECK_NOTE_MAX,
   dayHeadline,
   itemDetail,
+  macrosLabel,
   OUTCOME_LABEL,
   itemsForDay,
   PAIN_LEVELS,
@@ -226,15 +232,29 @@ const OUTCOMES: PlanOutcome[] = ['feito', 'substituido', 'nao_consegui']
 /** Refeição: registra o que a pessoa realmente comeu, não só "feito". */
 function MealRow({ item, check, readOnly }: { item: PersonPlanItem; check?: TodayCheck; readOnly: boolean }) {
   const save = useSetPlanCheck()
+  const photo = useMealPhoto()
+  const favorites = useMealFavorites()
+  const addFavorite = useAddMealFavorite()
+  const demo = Boolean(useAuth().profile?.is_demo)
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState(check?.note ?? '')
   const noteId = useId()
+  const fileId = useId()
   const detail = itemDetail(item)
+  const macros = item.show_macros ? macrosLabel(item) : ''
   const outcome = check?.outcome ?? null
+  const photoUrl = useMealPhotoUrls(check?.photo_path ? [check.photo_path] : []).data?.get(check?.photo_path ?? '')
+  const busy = save.isPending || photo.isPending
+  // Sugestões da nutricionista primeiro, depois as favoritas da pessoa (sem repetir).
+  const suggestions = [...(item.alternatives ?? []), ...(favorites.data ?? []).map((f) => f.label)].filter(
+    (x, i, all) => all.findIndex((y) => y.toLowerCase() === x.toLowerCase()) === i,
+  )
+  const isFavorite = (label: string) => (favorites.data ?? []).some((f) => f.label.toLowerCase() === label.trim().toLowerCase())
 
   function choose(next: PlanOutcome) {
     if (next === outcome) {
-      save.mutate({ itemId: item.id, outcome: null })
+      // Desfazer apaga o registro do dia; a foto vai junto.
+      save.mutate({ itemId: item.id, outcome: null, removePhoto: check?.photo_path ?? null })
       setNoteOpen(false)
       setNote('')
       return
@@ -243,11 +263,18 @@ function MealRow({ item, check, readOnly }: { item: PersonPlanItem; check?: Toda
     setNoteOpen(next !== 'feito')
   }
 
+  function pickSuggestion(label: string) {
+    setNote(label)
+    save.mutate({ itemId: item.id, outcome: 'substituido', note: label })
+    setNoteOpen(false)
+  }
+
   return (
     <li className="space-y-2 py-3">
       <div className="min-w-0">
         <p className="font-semibold">{item.title}</p>
         {detail && <p className="text-sm text-muted">{detail}</p>}
+        {macros && <p className="text-xs text-muted">{macros}</p>}
         {item.notes && <p className="text-xs text-muted">{item.notes}</p>}
       </div>
       {readOnly ? (
@@ -260,7 +287,7 @@ function MealRow({ item, check, readOnly }: { item: PersonPlanItem; check?: Toda
                 key={o}
                 type="button"
                 aria-pressed={outcome === o}
-                disabled={save.isPending}
+                disabled={busy}
                 onClick={() => choose(o)}
                 className={`min-h-11 rounded-full px-3 text-sm font-semibold ${
                   outcome === o ? 'bg-primary text-white' : 'bg-chip text-ink'
@@ -273,10 +300,39 @@ function MealRow({ item, check, readOnly }: { item: PersonPlanItem; check?: Toda
           {outcome && outcome !== 'feito' && !noteOpen && check?.note && (
             <p className="text-sm text-muted">
               “{check.note}”{' '}
-              <button type="button" className="font-semibold text-primary" onClick={() => setNoteOpen(true)}>
+              <button type="button" className="min-h-11 font-semibold text-primary" onClick={() => setNoteOpen(true)}>
                 Editar
               </button>
+              {outcome === 'substituido' && !demo && !isFavorite(check.note) && (
+                <button
+                  type="button"
+                  className="ml-3 inline-flex min-h-11 items-center gap-1 font-semibold text-primary"
+                  disabled={addFavorite.isPending}
+                  onClick={() => addFavorite.mutate(check.note!)}
+                >
+                  <Star className="h-4 w-4" aria-hidden="true" /> Salvar como favorita
+                </button>
+              )}
             </p>
+          )}
+          {outcome === 'substituido' && (noteOpen || !check?.note) && suggestions.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted">Substituições sugeridas e favoritas</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => pickSuggestion(a)}
+                    className="min-h-11 rounded-full border border-line px-3 text-sm hover:border-ink/40"
+                  >
+                    {isFavorite(a) && <Star className="mr-1 inline h-3.5 w-3.5" aria-label="Favorita" />}
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           {outcome && outcome !== 'feito' && (noteOpen || !check?.note) && (
             <form
@@ -298,10 +354,56 @@ function MealRow({ item, check, readOnly }: { item: PersonPlanItem; check?: Toda
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
-              <button type="submit" className="btn-outline shrink-0 px-4" disabled={save.isPending}>
+              <button type="submit" className="btn-outline shrink-0 px-4" disabled={busy}>
                 Salvar
               </button>
             </form>
+          )}
+          {outcome && outcome !== 'nao_consegui' && (
+            <div className="flex flex-wrap items-center gap-3">
+              {photoUrl && <img src={photoUrl} alt={`Foto de ${item.title}`} className="h-16 w-16 rounded-lg object-cover" />}
+              {demo ? (
+                <p className="text-xs text-muted">Na conta de demonstração não dá para enviar foto.</p>
+              ) : (
+                <>
+                  <label
+                    htmlFor={fileId}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-full bg-chip px-3 text-sm font-semibold"
+                  >
+                    <Camera className="h-4 w-4" aria-hidden="true" />
+                    {photo.isPending ? 'Enviando…' : check?.photo_path ? 'Trocar foto' : 'Adicionar foto (opcional)'}
+                  </label>
+                  <input
+                    id={fileId}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (file) photo.mutate({ item, outcome, note: check?.note ?? null, file, previous: check?.photo_path ?? null })
+                    }}
+                  />
+                  {check?.photo_path && (
+                    <button
+                      type="button"
+                      className="min-h-11 text-sm font-semibold text-muted"
+                      disabled={busy}
+                      onClick={() => photo.mutate({ item, outcome, note: check.note, file: null, previous: check.photo_path ?? null })}
+                    >
+                      Remover foto
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {(photo.error || addFavorite.error) && (
+            <p className="text-sm text-attention" role="alert">
+              {(photo.error ?? addFavorite.error)?.message}
+            </p>
           )}
         </>
       )}
