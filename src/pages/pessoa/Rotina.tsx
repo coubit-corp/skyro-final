@@ -172,7 +172,13 @@ function DayLogForm({ date }: { date: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="card space-y-4" onChange={() => setSaved(false)}>
-      <h2 className="eyebrow">Registro do dia</h2>
+      <div className="space-y-1">
+        <h2 className="eyebrow">Registro do dia</h2>
+        <p className="text-xs text-muted">
+          Os hábitos acima são a sua lista do dia. Estes números são o que os profissionais que você autorizou
+          veem e usam nos alertas.
+        </p>
+      </div>
 
       <Stepper
         icon={<Moon className="h-5 w-5" />}

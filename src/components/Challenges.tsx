@@ -294,7 +294,7 @@ function ChallengeCard({
             </div>
           ) : status === 'ativo' ? (
             <p className="text-sm text-muted">
-              Treino de hoje registrado. Faltam {treinos(mine.goal - mine.done)} para fechar a meta.
+              Treino de hoje registrado. {mine.goal - mine.done === 1 ? 'Falta' : 'Faltam'} {treinos(mine.goal - mine.done)} para fechar a meta.
             </p>
           ) : null}
         </div>

@@ -96,8 +96,8 @@ export function MyWorkouts() {
 
       {routines.data.length > 0 && !draft && (
         <div className="card space-y-2">
-          <p className="text-sm font-semibold">Como está seu dia?</p>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Versão do treino de hoje">
+          <p className="text-sm font-semibold">Versão dos seus treinos de hoje</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Versão dos seus treinos de hoje">
             {[{ value: null, label: 'Treino normal' } as const, ...ADAPTATIONS].map((c) => (
               <button
                 key={c.value ?? 'normal'}
