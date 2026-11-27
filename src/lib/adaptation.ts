@@ -2,7 +2,7 @@
 // "Hoje está difícil". Cálculo puro: a tela mostra a versão adaptada e a pessoa
 // registra qual versão fez. O profissional escolhe quais opções a pessoa pode usar.
 
-import { exerciseEquipment, findCatalogExercise, type Muscle } from './workouts'
+import { exerciseEquipment, findCatalogExercise, type Muscle, type Routine } from './workouts'
 
 export type Adaptation = 'curto' | 'sem_equipamento' | 'leve'
 
@@ -111,4 +111,23 @@ export function adaptedMinutes(list: AdaptedExercise[]): number {
   const active = list.filter((e) => !e.skipped)
   const secs = active.reduce((sum, e) => sum + estimateSeconds(e) + (e.restSec ?? 60), 0)
   return Math.max(1, Math.round(secs / 60))
+}
+
+/** Treino montado pela pessoa na versão do dia, pronto para começar. Sem adaptação, devolve o mesmo. */
+export function adaptRoutine(routine: Routine, mode: Adaptation | null): Routine {
+  if (!mode) return routine
+  const adapted = adaptWorkout(
+    routine.exercises.map((e) => ({ name: e.name, sets: e.sets, reps: e.reps, restSec: e.rest_sec })),
+    mode,
+  )
+  const exercises = routine.exercises.flatMap((e, i) => {
+    const a = adapted[i]
+    if (a.skipped) return []
+    if (!a.replaces) return [{ ...e, sets: a.sets }]
+    // Trocado: o substituto é da lista (tem vídeo próprio), então não leva o vídeo do original.
+    const { video: _video, ...rest } = e
+    void _video
+    return [{ ...rest, name: a.name, muscle: findCatalogExercise(a.name)?.muscle ?? e.muscle, sets: a.sets, reps: a.reps }]
+  })
+  return { ...routine, name: `${routine.name} · ${adaptationLabel(mode)}`, exercises }
 }

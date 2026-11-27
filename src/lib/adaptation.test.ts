@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adaptedMinutes, adaptWorkout, estimateSeconds, isAdaptation, SHORT_MINUTES, type AdaptableExercise } from './adaptation'
+import { adaptedMinutes, adaptRoutine, adaptWorkout, estimateSeconds, isAdaptation, SHORT_MINUTES, type AdaptableExercise } from './adaptation'
 import { findCatalogExercise } from './workouts'
 
 // Plano do personal da demo: títulos escritos à mão, sem o equipamento entre parênteses.
@@ -82,5 +82,28 @@ describe('auxiliares', () => {
     expect(isAdaptation('curto')).toBe(true)
     expect(isAdaptation('outra')).toBe(false)
     expect(isAdaptation(null)).toBe(false)
+  })
+})
+
+describe('adaptRoutine', () => {
+  const routine = {
+    id: 'r',
+    name: 'Dia 1',
+    exercises: [
+      { name: 'Supino reto (barra)', muscle: 'peito' as const, sets: 4, reps: '8', rest_sec: 90, video: 'https://www.youtube.com/watch?v=abcdefghijk' },
+      { name: 'Prancha', muscle: 'abdomen' as const, sets: 3, reps: '40 s', rest_sec: 45 },
+    ],
+  }
+  it('sem adaptação, o mesmo treino', () => {
+    expect(adaptRoutine(routine, null)).toBe(routine)
+  })
+  it('sem equipamento: troca o exercício, ajusta o músculo e tira o vídeo do original', () => {
+    const r = adaptRoutine(routine, 'sem_equipamento')
+    expect(r.name).toBe('Dia 1 · Estou sem equipamento')
+    expect(r.exercises[0]).toEqual({ name: 'Flexão de braço', muscle: 'peito', sets: 4, reps: '8-12', rest_sec: 90 })
+    expect(r.exercises[1]).toEqual(routine.exercises[1])
+  })
+  it('hoje está difícil: metade das séries', () => {
+    expect(adaptRoutine(routine, 'leve').exercises.map((e) => e.sets)).toEqual([2, 2])
   })
 })

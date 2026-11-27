@@ -4,9 +4,11 @@ import {
   useDeletePlanItem,
   usePatientPlan,
   useSavePlanItem,
+  useSaveAdaptations,
   useSavePlanNote,
   type PatientPlan,
 } from '../hooks/usePlanData'
+import { ADAPTATIONS, ALL_ADAPTATIONS, adaptationLabel, isAdaptation, type Adaptation } from '../lib/adaptation'
 import type { DailyLog, PlanItem, PlanKind, Specialty } from '../lib/database.types'
 import { dayOfMonth, today, weekdayShort } from '../lib/dates'
 import {
@@ -87,6 +89,17 @@ export function PlanEditor({
           {kind === 'fisio' && <PainWeek logs={logs} days={[...week.slice(1), todayIso]} />}
 
           {kind === 'refeicao' && <MealExceptions items={plan.data!.items} checks={plan.data!.checks} />}
+
+          {kind === 'treino' && plan.data!.adaptations !== undefined && (
+            <AdaptationSettings
+              key={(plan.data!.adaptations ?? ALL_ADAPTATIONS).join()}
+              personId={personId}
+              firstName={firstName}
+              saved={plan.data!.adaptations ?? null}
+              items={plan.data!.items}
+              checks={plan.data!.checks}
+            />
+          )}
 
           <NoteForm personId={personId} initial={plan.data!.note?.note ?? ''} exists={Boolean(plan.data!.note)} />
 
@@ -407,6 +420,91 @@ function Field({
         <p id={errId} className="text-xs text-attention">
           {error}
         </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Quais versões adaptadas a pessoa pode usar no dia e quando ela usou uma.
+ * Sem configuração salva, as três valem.
+ */
+function AdaptationSettings({
+  personId,
+  firstName,
+  saved,
+  items,
+  checks,
+}: {
+  personId: string
+  firstName: string
+  saved: Adaptation[] | null
+  items: PlanItem[]
+  checks: PatientPlan['checks']
+}) {
+  const save = useSaveAdaptations(personId)
+  const [options, setOptions] = useState<Adaptation[]>(saved ?? ALL_ADAPTATIONS)
+  const changed = options.join() !== (saved ?? ALL_ADAPTATIONS).join()
+  const titles = new Map(items.map((i) => [i.id, i.title]))
+  // Um registro por dia: a versão adaptada vale para o treino inteiro.
+  const used = new Map<string, Adaptation>()
+  for (const c of checks) if (isAdaptation(c.adaptation) && titles.has(c.item_id)) used.set(c.check_date, c.adaptation)
+  const days = [...used.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+
+  return (
+    <div className="space-y-3 rounded-xl bg-surface px-3 py-3">
+      <div>
+        <p className="text-sm font-semibold">Treino adaptado ao dia</p>
+        <p className="text-xs text-muted">
+          Versões que {firstName} pode escolher quando o dia não ajuda. O plano continua o mesmo.
+        </p>
+      </div>
+      <fieldset className="space-y-1">
+        <legend className="sr-only">Versões liberadas</legend>
+        {ADAPTATIONS.map((a) => (
+          <label key={a.value} className="flex min-h-11 items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={options.includes(a.value)}
+              onChange={(e) =>
+                setOptions((o) =>
+                  ALL_ADAPTATIONS.filter((x) => (x === a.value ? e.target.checked : o.includes(x))),
+                )
+              }
+            />
+            <span>
+              <span className="font-semibold">{a.label}</span>
+              <span className="block text-xs text-muted">{a.hint}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      {changed && (
+        <button
+          type="button"
+          className="btn-primary w-full sm:w-auto"
+          disabled={save.isPending}
+          onClick={() => save.mutate({ options, exists: saved !== null })}
+        >
+          {save.isPending ? 'Salvando…' : 'Salvar versões liberadas'}
+        </button>
+      )}
+      {save.isError && <p className="text-sm text-attention">Não deu para salvar. Tente de novo.</p>}
+      {days.length > 0 && (
+        <div className="border-t border-line pt-2">
+          <p className="text-sm font-semibold">Versões usadas nos últimos dias</p>
+          <ul className="mt-1 space-y-1 text-sm">
+            {days.map(([date, a]) => (
+              <li key={date}>
+                <span className="text-muted">
+                  {weekdayShort(date)} {dayOfMonth(date)} ·{' '}
+                </span>
+                {adaptationLabel(a)}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )
