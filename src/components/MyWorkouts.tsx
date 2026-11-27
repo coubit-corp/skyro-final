@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, Dumbbell, Pencil, Play, Plus } from 'lucide-react'
+import { BookOpen, ChevronRight, Dumbbell, Footprints, Pencil, Play, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/auth-context'
@@ -53,6 +53,17 @@ export function MyWorkouts() {
         <span className="min-w-0 flex-1">
           <span className="block font-semibold">Biblioteca de exercícios</span>
           <span className="block text-sm text-muted">Vídeo e passo a passo de como fazer cada um</span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+      </Link>
+
+      <Link to="/plano/corrida" className="card flex items-center gap-3 transition hover:border-ink/40">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lavender/20">
+          <Footprints className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Corrida</span>
+          <span className="block text-sm text-muted">Plano para 5, 10 ou 21 km e corridas do Strava ou Garmin</span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
       </Link>
