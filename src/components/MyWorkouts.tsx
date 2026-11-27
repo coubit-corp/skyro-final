@@ -5,6 +5,7 @@ import { useAuth } from '../auth/auth-context'
 import { useRoutines, useWorkoutHistory, WORKOUTS_NOT_ACTIVE } from '../hooks/useWorkouts'
 import { todayBRT } from '../lib/dates'
 import { muscleLabel, muscleSets, readDraft, startWorkout, writeDraft, type Routine } from '../lib/workouts'
+import { ADAPTATIONS, adaptRoutine, type Adaptation } from '../lib/adaptation'
 import { BodyMap } from './ExerciseGuide'
 import { ErrorState, Skeleton } from './ui'
 
@@ -15,6 +16,7 @@ export function MyWorkouts() {
   const history = useWorkoutHistory()
   const navigate = useNavigate()
   const [draft, setDraft] = useState(() => (me ? readDraft(me) : null))
+  const [mode, setMode] = useState<Adaptation | null>(null)
   const week = useMemo(() => muscleSets(history.data ?? [], todayBRT()), [history.data])
 
   if (!me) return null
@@ -35,9 +37,10 @@ export function MyWorkouts() {
   }
 
   const start = (r: Routine | null) => {
-    writeDraft(me, startWorkout(r, Date.now()))
+    writeDraft(me, startWorkout(r && adaptRoutine(r, mode), Date.now()))
     navigate('/plano/treino')
   }
+
 
   return (
     <section aria-label="Meus treinos" className="space-y-3">
@@ -77,6 +80,28 @@ export function MyWorkouts() {
               Descartar
             </button>
           </div>
+        </div>
+      )}
+
+      {routines.data.length > 0 && !draft && (
+        <div className="card space-y-2">
+          <p className="text-sm font-semibold">Como está seu dia?</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Versão do treino de hoje">
+            {[{ value: null, label: 'Treino normal' } as const, ...ADAPTATIONS].map((c) => (
+              <button
+                key={c.value ?? 'normal'}
+                type="button"
+                aria-pressed={mode === c.value}
+                onClick={() => setMode(c.value)}
+                className={`min-h-11 rounded-full px-4 text-sm font-semibold transition ${
+                  mode === c.value ? 'bg-primary text-white' : 'bg-chip text-ink hover:bg-line'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          {mode && <p className="text-xs text-muted">{ADAPTATIONS.find((a) => a.value === mode)?.hint} Vale para o treino que você iniciar.</p>}
         </div>
       )}
 

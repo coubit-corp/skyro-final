@@ -3,11 +3,12 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/auth-context'
-import { evaluatePatient, type PatientStatus } from '../lib/alerts'
+import { evaluatePatient, longestAlertDays, type PatientStatus } from '../lib/alerts'
 import type { toProfessionalRow } from '../lib/professionalForm'
 import type { toShowcaseRow } from '../lib/vitrine'
-import type { DailyLog, Habit, Professional, ProfileBrief, Share, Tip } from '../lib/database.types'
+import type { DailyLog, Habit, Professional, ProfileBrief, Share, Specialty, Tip } from '../lib/database.types'
 import { addDays, today } from '../lib/dates'
+import { latest, type Teammate } from '../lib/patientGroups'
 import { currentStreak } from '../lib/streak'
 import { supabase } from '../lib/supabase'
 
@@ -24,6 +25,12 @@ export interface PatientRow {
   since: string
   evaluation: PatientStatus
   streak: number
+  /** Última mensagem trocada ou dica enviada por quem está olhando. null = nunca. */
+  lastContact: string | null
+  /** Última vez que quem está olhando criou ou mudou o plano (ou o recado). null = sem plano. */
+  lastPlanChange: string | null
+  /** Outros profissionais que acompanham a mesma pessoa. */
+  team: Teammate[]
 }
 
 function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
@@ -64,12 +71,30 @@ export function usePatients() {
 
       const ids = shares.map((s) => s.person_id)
       const todayIso = today()
-      const [logs, checks] = await Promise.all([
+      const [logs, checks, messages, tips, items, notes, teams] = await Promise.all([
         supabase.from('daily_logs').select('*').in('user_id', ids).gte('log_date', addDays(todayIso, -14)),
         supabase.from('habit_checks').select('user_id, check_date').in('user_id', ids).gte('check_date', addDays(todayIso, -60)),
+        supabase.from('messages').select('person_id, created_at').eq('professional_id', proId).in('person_id', ids).order('created_at', { ascending: false }).limit(1000),
+        supabase.from('tips').select('person_id, created_at').eq('professional_id', proId).in('person_id', ids).order('created_at', { ascending: false }).limit(1000),
+        supabase.from('plan_items').select('person_id, updated_at').eq('professional_id', proId).in('person_id', ids),
+        supabase.from('plan_notes').select('person_id, updated_at').eq('professional_id', proId).in('person_id', ids),
+        supabase.rpc('patient_teams'),
       ])
       const allLogs = unwrap<DailyLog[]>(logs)
       const allChecks = unwrap<{ user_id: string; check_date: string }[]>(checks)
+      // Contato, plano e equipe complementam a fila: se algum falhar, a lista aparece sem eles.
+      type Stamp = { person_id: string; created_at?: string; updated_at?: string }
+      const rows = (res: { data: unknown; error: unknown }) => (res.error ? [] : ((res.data ?? []) as Stamp[]))
+      const newest = (list: Stamp[], person: string) =>
+        latest(...list.filter((r) => r.person_id === person).map((r) => r.created_at ?? r.updated_at))
+      const contacts = [...rows(messages), ...rows(tips)]
+      const plans = [...rows(items), ...rows(notes)]
+      const mates = (teams.error ? [] : (teams.data ?? [])) as {
+        person_id: string
+        professional_id: string
+        specialty: Specialty
+        first_name: string
+      }[]
 
       return shares
         .map((s) => {
@@ -82,11 +107,21 @@ export function usePatients() {
             since: s.created_at,
             evaluation: evaluatePatient(allLogs.filter((l) => l.user_id === s.person_id), todayIso),
             streak: currentStreak(days, todayIso),
+            lastContact: newest(contacts, s.person_id),
+            lastPlanChange: newest(plans, s.person_id),
+            team: mates
+              .filter((m) => m.person_id === s.person_id)
+              .map((m) => ({ professionalId: m.professional_id, specialty: m.specialty, firstName: m.first_name })),
           }
         })
         .sort((a, b) => {
           if (a.evaluation.status !== b.evaluation.status) return a.evaluation.status === 'atencao' ? -1 : 1
-          return b.evaluation.alerts.length - a.evaluation.alerts.length || a.name.localeCompare(b.name, 'pt-BR')
+          // Mais alertas primeiro; empate: o alerta mais antigo primeiro.
+          return (
+            b.evaluation.alerts.length - a.evaluation.alerts.length ||
+            longestAlertDays(b.evaluation.alerts) - longestAlertDays(a.evaluation.alerts) ||
+            a.name.localeCompare(b.name, 'pt-BR')
+          )
         })
     },
   })
@@ -207,6 +242,22 @@ export function useSaveProfessional() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['professionals', proId] })
+    },
+  })
+}
+
+/** Outros profissionais que acompanham a mesma pessoa (primeiro nome e área). Vazio se o banco ainda não tiver a função. */
+export function usePatientTeam(personId: string | undefined) {
+  const proId = useProId()
+  return useQuery({
+    queryKey: ['patient_team', proId, personId],
+    enabled: Boolean(personId),
+    queryFn: async (): Promise<Teammate[]> => {
+      const { data, error } = await supabase.rpc('patient_teams')
+      if (error) return []
+      return ((data ?? []) as { person_id: string; professional_id: string; specialty: Specialty; first_name: string }[])
+        .filter((m) => m.person_id === personId)
+        .map((m) => ({ professionalId: m.professional_id, specialty: m.specialty, firstName: m.first_name }))
     },
   })
 }

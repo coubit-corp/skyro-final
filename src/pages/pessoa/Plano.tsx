@@ -9,6 +9,7 @@ import { DemoBanner } from '../../components/DemoBanner'
 import { MyWorkouts } from '../../components/MyWorkouts'
 import { CheckButton, ErrorState, PageHeader, Skeleton } from '../../components/ui'
 import {
+  adaptationsFor,
   useAddMealFavorite,
   useMealFavorites,
   useMealPhoto,
@@ -20,7 +21,9 @@ import {
   type PersonPlanItem,
   type TodayCheck,
 } from '../../hooks/usePlanData'
+import { ADAPTATIONS, adaptationLabel, adaptWorkout, type AdaptedExercise, type Adaptation } from '../../lib/adaptation'
 import type { PlanOutcome } from '../../lib/database.types'
+import { exercisePath } from '../../lib/workouts'
 import { today } from '../../lib/dates'
 import {
   CHECK_NOTE_MAX,
@@ -194,11 +197,20 @@ function ProPlan({ tab, proId, plan }: { tab: TabInfo; proId: string; plan: MyPl
       ) : (
         <>
           {todayItems.length > 0 ? (
-            <ul className="card divide-y divide-line py-1">
-              {todayItems.map((i) => (
-                <PlanRow key={i.id} item={i} check={plan.checksToday.get(i.id)} readOnly={ended} />
-              ))}
-            </ul>
+            tab.kind === 'treino' ? (
+              <AdaptableWorkout
+                items={todayItems}
+                checks={plan.checksToday}
+                options={ended ? [] : adaptationsFor(plan, proId)}
+                readOnly={ended}
+              />
+            ) : (
+              <ul className="card divide-y divide-line py-1">
+                {todayItems.map((i) => (
+                  <PlanRow key={i.id} item={i} check={plan.checksToday.get(i.id)} readOnly={ended} />
+                ))}
+              </ul>
+            )
           ) : (
             <p className="card text-sm text-muted">Hoje é dia de descanso nesta área.</p>
           )}
@@ -399,9 +411,104 @@ function MealRow({ item, check, readOnly }: { item: PersonPlanItem; check?: Toda
   )
 }
 
-function CheckRow({ item, done, readOnly }: { item: PersonPlanItem; done: boolean; readOnly: boolean }) {
+/**
+ * Treino do dia com a escolha de versão: normal, "Tenho 20 minutos", "Estou sem
+ * equipamento" ou "Hoje está difícil", dentro das opções que o personal liberou.
+ */
+function AdaptableWorkout({
+  items,
+  checks,
+  options,
+  readOnly,
+}: {
+  items: PersonPlanItem[]
+  checks: Map<string, TodayCheck>
+  options: Adaptation[]
+  readOnly: boolean
+}) {
+  // Se a pessoa já marcou algum item numa versão hoje, a tela abre nela.
+  const saved = items.map((i) => checks.get(i.id)?.adaptation).find(Boolean) ?? null
+  const [mode, setMode] = useState<Adaptation | null>(saved && options.includes(saved) ? saved : null)
+  const adapted = adaptWorkout(
+    items.map((i) => ({ name: i.title, sets: i.sets ?? 1, reps: i.reps ?? '', load: i.load })),
+    mode,
+  )
+  const choices = ADAPTATIONS.filter((a) => options.includes(a.value))
+
+  return (
+    <div className="space-y-3">
+      {choices.length > 0 && (
+        <div className="card space-y-2">
+          <p className="text-sm font-semibold">Como está seu dia?</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Versão do treino de hoje">
+            {[{ value: null, label: 'Treino normal' } as const, ...choices].map((c) => (
+              <button
+                key={c.value ?? 'normal'}
+                type="button"
+                aria-pressed={mode === c.value}
+                onClick={() => setMode(c.value)}
+                className={`min-h-11 rounded-full px-4 text-sm font-semibold transition ${
+                  mode === c.value ? 'bg-primary text-white' : 'bg-chip text-ink hover:bg-line'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          {mode && <p className="text-xs text-muted">{ADAPTATIONS.find((a) => a.value === mode)?.hint}</p>}
+        </div>
+      )}
+      <ul className="card divide-y divide-line py-1">
+        {items.map((i, n) => (
+          <CheckRow
+            key={i.id}
+            item={i}
+            done={Boolean(checks.get(i.id))}
+            doneAs={checks.get(i.id)?.adaptation ?? null}
+            readOnly={readOnly}
+            view={mode ? adapted[n] : undefined}
+            adaptation={mode}
+          />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function CheckRow({
+  item,
+  done,
+  readOnly,
+  view,
+  adaptation = null,
+  doneAs = null,
+}: {
+  item: PersonPlanItem
+  done: boolean
+  readOnly: boolean
+  /** Versão adaptada do item, quando a pessoa escolheu uma. */
+  view?: AdaptedExercise
+  adaptation?: Adaptation | null
+  /** Versão com que o item já foi marcado hoje. */
+  doneAs?: Adaptation | null
+}) {
   const toggle = useSetPlanCheck()
-  const detail = itemDetail(item)
+  if (view?.skipped) {
+    return (
+      <li className="flex items-center gap-3 py-3 text-muted">
+        <span className="h-11 w-11 shrink-0" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold line-through">{item.title}</p>
+          <p className="text-xs">Fica de fora hoje{view.tip ? ` (${view.tip})` : ''}.</p>
+        </div>
+      </li>
+    )
+  }
+  const title = view?.name ?? item.title
+  const detail = view
+    ? [`${view.sets} × ${view.reps}`.trim(), view.load, view.tip].filter(Boolean).join(' · ')
+    : itemDetail(item)
+  const doneLabel = done && doneAs ? adaptationLabel(doneAs) : null
   return (
     <li className="flex items-center gap-3 py-3">
       {readOnly ? (
@@ -410,18 +517,29 @@ function CheckRow({ item, done, readOnly }: { item: PersonPlanItem; done: boolea
         <span className="flex h-11 w-11 shrink-0 items-center justify-center">
           <CheckButton
             checked={done}
-            label={`${item.title}: feito hoje`}
+            label={`${title}: feito hoje`}
             disabled={toggle.isPending}
-            onChange={(next) => toggle.mutate({ itemId: item.id, outcome: next ? 'feito' : null })}
+            onChange={(next) => toggle.mutate({ itemId: item.id, outcome: next ? 'feito' : null, adaptation })}
           />
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className={`font-semibold ${done ? 'text-muted line-through' : ''}`}>{item.title}</p>
+        <p className={`font-semibold ${done ? 'text-muted line-through' : ''}`}>{title}</p>
+        {view?.replaces && <p className="text-xs text-muted">No lugar de {view.replaces}</p>}
         {detail && <p className="text-sm text-muted">{detail}</p>}
         {item.notes && <p className="text-xs text-muted">{item.notes}</p>}
+        {doneLabel && <p className="text-xs font-semibold text-primary">Feito na versão: {doneLabel}</p>}
       </div>
-      {item.video_url && (
+      {view?.replaces ? (
+        <Link
+          to={exercisePath(view.name)}
+          state={{ back: { to: '/plano', label: 'Meu plano' } }}
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-chip px-3 text-xs font-semibold text-ink"
+        >
+          <PlayCircle className="h-4 w-4" aria-hidden="true" /> Como fazer
+          <span className="sr-only"> {view.name}</span>
+        </Link>
+      ) : item.video_url && (
         <a
           href={item.video_url}
           target="_blank"

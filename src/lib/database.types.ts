@@ -205,6 +205,8 @@ export interface PlanCheck {
   created_at: string
   outcome: PlanOutcome
   note: string | null
+  /** Versão adaptada do treino que a pessoa fez (null = a normal). */
+  adaptation?: 'curto' | 'sem_equipamento' | 'leve' | null
   /** Foto do que a pessoa comeu: <pessoa>/<nutricionista>/<arquivo>.jpg no bucket meal-photos. */
   photo_path?: string | null
 }

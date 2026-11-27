@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evaluatePatient } from './alerts'
+import { alertSince, evaluatePatient, longestAlertDays } from './alerts'
 import type { DailyLog } from './database.types'
 import { addDays } from './dates'
 
@@ -41,7 +41,7 @@ describe('evaluatePatient', () => {
     it('alerta com menos de 6h na última noite', () => {
       const r = evaluatePatient(week((i) => (i === 0 ? { sleep_hours: 5.5 } : {})), TODAY)
       expect(r.status).toBe('atencao')
-      expect(r.alerts).toEqual([{ kind: 'sono', message: 'Dormiu 5h30' }])
+      expect(r.alerts).toEqual([{ kind: 'sono', message: 'Dormiu 5h30', days: 1 }])
     })
 
     it('não alerta com exatamente 6h', () => {
@@ -65,7 +65,7 @@ describe('evaluatePatient', () => {
   describe('treinos', () => {
     it('alerta com 2 treinos planejados perdidos na semana', () => {
       const r = evaluatePatient(week((i) => (i === 1 || i === 3 ? { workout_done: false } : {})), TODAY)
-      expect(r.alerts).toEqual([{ kind: 'treino', message: 'Faltou a 2 treinos na semana' }])
+      expect(r.alerts).toEqual([{ kind: 'treino', message: 'Faltou a 2 treinos na semana', days: 3 }])
       expect(r.workoutsDone).toBe(5)
     })
 
@@ -97,7 +97,7 @@ describe('evaluatePatient', () => {
   describe('água', () => {
     it('alerta com menos de 50% da meta ontem', () => {
       const r = evaluatePatient(week((i) => (i === 1 ? { water_liters: 0.8 } : {})), TODAY)
-      expect(r.alerts).toEqual([{ kind: 'agua', message: 'Água: 0,8 L de 2 L' }])
+      expect(r.alerts).toEqual([{ kind: 'agua', message: 'Água: 0,8 L de 2 L', days: 1 }])
     })
 
     it('não alerta com exatamente 50%', () => {
@@ -149,5 +149,34 @@ describe('evaluatePatient', () => {
     )
     expect(r.status).toBe('atencao')
     expect(r.alerts.map((a) => a.kind)).toEqual(['sono', 'treino'])
+  })
+
+  describe('há quanto tempo', () => {
+    it('conta noites seguidas de sono curto', () => {
+      const r = evaluatePatient(week((i) => (i <= 2 ? { sleep_hours: 5 } : {})), TODAY)
+      expect(r.alerts.find((a) => a.kind === 'sono')?.days).toBe(3)
+    })
+    it('conta dias seguidos com pouca água, a partir de ontem', () => {
+      const r = evaluatePatient(week((i) => (i >= 1 && i <= 4 ? { water_liters: 0.5 } : {})), TODAY)
+      expect(r.alerts.find((a) => a.kind === 'agua')?.days).toBe(4)
+    })
+    it('sem registro: os dias desde o último registro; nunca registrou: sem duração', () => {
+      expect(evaluatePatient([log(5)], TODAY).alerts[0]).toMatchObject({ kind: 'sem_registro', days: 5 })
+      expect(evaluatePatient([], TODAY).alerts[0].days).toBeUndefined()
+    })
+  })
+})
+
+describe('alertSince', () => {
+  it('descreve a duração de cada tipo de alerta', () => {
+    expect(alertSince({ kind: 'sono', message: '', days: 1 })).toBe('última noite')
+    expect(alertSince({ kind: 'sono', message: '', days: 3 })).toBe('3 noites seguidas')
+    expect(alertSince({ kind: 'agua', message: '', days: 1 })).toBe('desde ontem')
+    expect(alertSince({ kind: 'treino', message: '', days: 6 })).toBe('há 6 dias')
+    expect(alertSince({ kind: 'sem_registro', message: 'Sem registro há 4 dias', days: 4 })).toBeNull()
+  })
+  it('longestAlertDays pega o alerta mais antigo', () => {
+    expect(longestAlertDays([{ kind: 'sono', message: '', days: 2 }, { kind: 'agua', message: '', days: 5 }])).toBe(5)
+    expect(longestAlertDays([])).toBe(0)
   })
 })

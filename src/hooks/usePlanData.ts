@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/auth-context'
 import type { PlanCheck, PlanItem, PlanNote, PlanOutcome, ProfileBrief, Share, Specialty } from '../lib/database.types'
+import { ALL_ADAPTATIONS, isAdaptation, type Adaptation } from '../lib/adaptation'
 import { addDays, today } from '../lib/dates'
 import { toGalleryJpeg } from '../lib/image'
 import type { toPlanItemRow } from '../lib/plan'
@@ -28,7 +29,7 @@ function useUserId(): string {
 
 // ------------------------------------------------------------------ pessoa
 
-export type TodayCheck = Pick<PlanCheck, 'outcome' | 'note' | 'photo_path'>
+export type TodayCheck = Pick<PlanCheck, 'outcome' | 'note' | 'adaptation' | 'photo_path'>
 
 export interface MyPlan {
   items: PersonPlanItem[]
@@ -38,6 +39,18 @@ export interface MyPlan {
   /** Todos os compartilhamentos (ativos e encerrados), um por profissional, o mais recente */
   shares: Map<string, ShareWithAuthor>
   painToday: number | null
+  /** Opções de treino adaptado que cada personal liberou (sem configuração: todas). */
+  adaptations: Map<string, Adaptation[]>
+}
+
+/** Opções guardadas no banco, só as válidas. */
+function cleanOptions(raw: unknown): Adaptation[] {
+  return Array.isArray(raw) ? raw.filter(isAdaptation) : ALL_ADAPTATIONS
+}
+
+/** Opções que um personal liberou para a pessoa. Sem configuração: todas. */
+export function adaptationsFor(plan: Pick<MyPlan, 'adaptations'>, proId: string): Adaptation[] {
+  return plan.adaptations.get(proId) ?? ALL_ADAPTATIONS
 }
 
 export function useMyPlan() {
@@ -46,7 +59,7 @@ export function useMyPlan() {
   return useQuery({
     queryKey: ['plan', userId, todayIso],
     queryFn: async (): Promise<MyPlan> => {
-      const [items, notes, checks, shares, log] = await Promise.all([
+      const [items, notes, checks, shares, log, adaptations] = await Promise.all([
         supabase
           .from('plan_items')
           .select(`*, professionals(specialty, ${PRO_PROFILE})`)
@@ -60,6 +73,8 @@ export function useMyPlan() {
           .eq('person_id', userId)
           .order('created_at', { ascending: false }),
         supabase.from('daily_logs').select('pain_level').eq('user_id', userId).eq('log_date', todayIso).maybeSingle(),
+        // Sem a migration do treino adaptado, a tabela não existe: as três opções valem.
+        supabase.from('plan_adaptations').select('professional_id, options').eq('person_id', userId),
       ])
       const byPro = new Map<string, ShareWithAuthor>()
       // Mais recente primeiro: um compartilhamento ativo vence um antigo revogado.
@@ -73,8 +88,16 @@ export function useMyPlan() {
         checksToday: new Map(
           unwrap<(TodayCheck & { item_id: string })[]>(checks).map((c) => [
             c.item_id,
-            { outcome: c.outcome, note: c.note, photo_path: c.photo_path ?? null },
+            { outcome: c.outcome, note: c.note, adaptation: c.adaptation ?? null, photo_path: c.photo_path ?? null },
           ]),
+        ),
+        adaptations: new Map(
+          adaptations.error
+            ? []
+            : ((adaptations.data ?? []) as { professional_id: string; options: unknown }[]).map((a) => [
+                a.professional_id,
+                cleanOptions(a.options),
+              ]),
         ),
         shares: byPro,
         painToday: unwrap<{ pain_level: number | null } | null>(log)?.pain_level ?? null,
@@ -92,12 +115,15 @@ export function useSetPlanCheck() {
       itemId,
       outcome,
       note = null,
+      adaptation = null,
       photoPath,
       removePhoto = null,
     }: {
       itemId: string
       outcome: PlanOutcome | null
       note?: string | null
+      /** Versão adaptada do treino (só itens de treino). */
+      adaptation?: Adaptation | null
       /** Foto da refeição. Ausente: mantém a que já estava. */
       photoPath?: string | null
       /** Ao apagar o registro, a foto dele (para não sobrar arquivo sem uso). */
@@ -115,6 +141,8 @@ export function useSetPlanCheck() {
                 check_date: date,
                 outcome,
                 note: note?.trim() || null,
+                // Só manda a coluna quando há versão adaptada: sem a migration, o resto continua funcionando.
+                ...(adaptation ? { adaptation } : {}),
                 // Só manda a coluna quando muda: sem a migration de nutrição, o resto continua funcionando.
                 ...(photoPath !== undefined ? { photo_path: photoPath } : {}),
               },
@@ -154,7 +182,9 @@ export interface PatientPlan {
   items: PlanItem[]
   note: PlanNote | null
   /** Marcações dos últimos 8 dias (para a adesão da semana) */
-  checks: Pick<PlanCheck, 'item_id' | 'check_date' | 'outcome' | 'note' | 'photo_path'>[]
+  checks: Pick<PlanCheck, 'item_id' | 'check_date' | 'outcome' | 'note' | 'adaptation' | 'photo_path'>[]
+  /** Opções de treino adaptado liberadas. null = nunca configurado (todas valem); undefined = recurso fora do banco. */
+  adaptations?: Adaptation[] | null
 }
 
 export function usePatientPlan(personId: string | undefined) {
@@ -163,7 +193,7 @@ export function usePatientPlan(personId: string | undefined) {
     queryKey: ['patient_plan', proId, personId],
     enabled: Boolean(personId),
     queryFn: async (): Promise<PatientPlan> => {
-      const [items, note, checks] = await Promise.all([
+      const [items, note, checks, adaptations] = await Promise.all([
         supabase.from('plan_items').select('*').eq('professional_id', proId).eq('person_id', personId!).order('position'),
         supabase.from('plan_notes').select('*').eq('professional_id', proId).eq('person_id', personId!).maybeSingle(),
         supabase
@@ -171,11 +201,13 @@ export function usePatientPlan(personId: string | undefined) {
           .select('*')
           .eq('person_id', personId!)
           .gte('check_date', addDays(today(), -8)),
+        supabase.from('plan_adaptations').select('options').eq('professional_id', proId).eq('person_id', personId!).maybeSingle(),
       ])
       return {
         items: unwrap<PlanItem[]>(items),
         note: unwrap<PlanNote | null>(note),
         checks: unwrap<PatientPlan['checks']>(checks),
+        adaptations: adaptations.error ? undefined : adaptations.data ? cleanOptions(adaptations.data.options) : null,
       }
     },
   })
@@ -219,6 +251,20 @@ export function useSavePlanNote(personId: string) {
         if (exists) unwrap(await supabase.from('plan_notes').delete().match(where))
       } else if (exists) unwrap(await supabase.from('plan_notes').update({ note: text }).match(where))
       else unwrap(await supabase.from('plan_notes').insert({ ...where, note: text }))
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['patient_plan', proId, personId] }),
+  })
+}
+
+/** O personal escolhe quais versões adaptadas a pessoa pode usar. */
+export function useSaveAdaptations(personId: string) {
+  const proId = useUserId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ options, exists }: { options: Adaptation[]; exists: boolean }) => {
+      const where = { professional_id: proId, person_id: personId }
+      if (exists) unwrap(await supabase.from('plan_adaptations').update({ options }).match(where))
+      else unwrap(await supabase.from('plan_adaptations').insert({ ...where, options }))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['patient_plan', proId, personId] }),
   })

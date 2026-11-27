@@ -9,13 +9,16 @@ import { Logo } from '../../components/Logo'
 import { SignOutButton } from '../../components/SignOutButton'
 import { ErrorState, Skeleton } from '../../components/ui'
 import { useMyProfessional, usePatients, type PatientRow } from '../../hooks/useProData'
-import { formatHours } from '../../lib/dates'
+import { alertSince } from '../../lib/alerts'
+import { formatHours, today } from '../../lib/dates'
 import {
+  agoLabel,
   attentionSummary,
   groupOf,
   groupPatients,
   NEXT_ACTION_LABEL,
   nextAction,
+  responsibleFor,
   type PatientGroup,
 } from '../../lib/patientGroups'
 import { specialtyLabel } from '../../lib/specialties'
@@ -23,7 +26,14 @@ import { specialtyLabel } from '../../lib/specialties'
 /** Frase curta de cada paciente: o motivo do alerta ou como ele está. */
 function summaryLine(p: PatientRow): string {
   const e = p.evaluation
-  if (e.alerts.length) return e.alerts.map((a) => a.message).join(' · ')
+  if (e.alerts.length) {
+    return e.alerts
+      .map((a) => {
+        const since = alertSince(a)
+        return since ? `${a.message} (${since})` : a.message
+      })
+      .join(' · ')
+  }
   const parts: string[] = []
   if (e.workoutsPlanned) parts.push(`Treinos ${e.workoutsDone}/${e.workoutsPlanned}`)
   if (e.lastSleep != null) parts.push(`${formatHours(e.lastSleep)} de sono`)
@@ -49,21 +59,33 @@ const BADGES: Record<PatientGroup, { label: string; className: string }> = {
 
 export function PatientCard({ p }: { p: PatientRow }) {
   const badge = BADGES[groupOf(p.evaluation)]
+  const me = useMyProfessional()
+  const todayIso = today()
+  const owner = responsibleFor(p.evaluation.alerts, me.data?.specialty, p.team)
   return (
     <li className="min-w-0">
       <Link
         to={`/pro/pacientes/${p.id}`}
-        className="card flex items-center gap-3 transition hover:ring-2 hover:ring-lavender"
+        className="card flex items-start gap-3 transition hover:ring-2 hover:ring-lavender"
       >
         <Avatar seed={p.avatarSeed} photo={p.avatarPath} name={p.name} size={48} />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">{p.name}</p>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-semibold break-words">{p.name}</p>
+            <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>
+              {badge.label}
+            </span>
+          </div>
           <p className="line-clamp-2 text-sm text-muted">{summaryLine(p)}</p>
-          <p className="mt-0.5 text-xs font-semibold text-primary">Próxima ação: {NEXT_ACTION_LABEL[nextAction(p.evaluation)]}</p>
+          <p className="text-xs text-muted">
+            Último contato: {p.lastContact ? agoLabel(p.lastContact, todayIso) : 'nenhum'} · Plano:{' '}
+            {p.lastPlanChange ? `mudou ${agoLabel(p.lastPlanChange, todayIso)}` : 'ainda não montado'}
+          </p>
+          <p className="text-xs font-semibold text-primary">
+            Próxima ação: {NEXT_ACTION_LABEL[nextAction(p.evaluation)]}
+            {owner && <span className={owner.isMe ? '' : 'text-muted'}> · Responsável: {owner.label}</span>}
+          </p>
         </div>
-        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>
-          {badge.label}
-        </span>
       </Link>
     </li>
   )
