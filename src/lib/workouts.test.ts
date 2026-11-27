@@ -46,7 +46,7 @@ describe('catálogo de exercícios', () => {
       'Supino reto (máquina)',
       'Supino inclinado (máquina)',
     ])
-    expect(searchExercises(EXERCISE_CATALOG, '', 'panturrilhas')).toHaveLength(3)
+    expect(searchExercises(EXERCISE_CATALOG, '', 'panturrilhas')).toHaveLength(4)
     expect(searchExercises(EXERCISE_CATALOG, 'supino', 'costas')).toHaveLength(0)
   })
 })
