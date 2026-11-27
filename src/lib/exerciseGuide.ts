@@ -159,6 +159,12 @@ export const EXERCISE_GUIDES: Record<string, ExerciseGuide> = {
     'Com os cotovelos quase retos, puxe a barra em arco até perto das coxas.',
     'Volte devagar até os braços ficarem na altura da cabeça.',
   ]),
+  Superman: g('peso_corporal', ['gluteos', 'posteriores'], '17ElZ1pYuJE', [
+    'Deite de bruços no chão com os braços estendidos à frente.',
+    'Contraia glúteos e abdômen e olhe para o chão, sem forçar o pescoço.',
+    'Eleve ao mesmo tempo braços, peito e pernas alguns centímetros.',
+    'Segure 2 segundos no alto e desça devagar.',
+  ]),
   'Levantamento terra': g('barra', ['posteriores', 'gluteos', 'quadriceps'], 'QiqUXcz2iyA', [
     'Fique com os pés na largura do quadril e a barra sobre o meio dos pés.',
     'Dobre quadril e joelhos para segurar a barra, coluna reta, peito aberto e ombros sobre a barra.',
@@ -214,6 +220,12 @@ export const EXERCISE_GUIDES: Record<string, ExerciseGuide> = {
     'Segure as pegadas na altura dos ombros, braços estendidos à frente.',
     'Abra os braços para trás em arco, juntando as escápulas.',
     'Volte devagar até os braços ficarem à frente do corpo.',
+  ]),
+  'Flexão pike': g('peso_corporal', ['triceps'], 'nA8lcZRFDqs', [
+    'Comece na posição de flexão e leve o quadril para cima, formando um "V" invertido.',
+    'Deixe as mãos um pouco mais abertas que os ombros e a cabeça entre os braços.',
+    'Dobre os cotovelos levando o topo da cabeça em direção ao chão.',
+    'Empurre o chão e volte. Para facilitar, aproxime os pés das mãos menos.',
   ]),
   'Encolhimento de ombros (halteres)': g('halteres', ['costas'], 'AdkMdSoRVPE', [
     'Em pé, segure um halter em cada mão ao lado do corpo.',
@@ -329,6 +341,12 @@ export const EXERCISE_GUIDES: Record<string, ExerciseGuide> = {
     'Desça dobrando os joelhos com controle, sem tirar as costas do apoio.',
     'Suba empurrando a plataforma, sem travar os joelhos no alto.',
   ]),
+  'Agachamento (peso do corpo)': g('peso_corporal', ['gluteos', 'posteriores'], 'ajzahtQpPAg', [
+    'Fique em pé com os pés na largura dos ombros e os braços à frente para equilibrar.',
+    'Contraia o abdômen e mantenha o peito aberto.',
+    'Desça levando o quadril para trás, como se fosse sentar numa cadeira, joelhos na direção dos pés.',
+    'Suba empurrando o chão com o pé inteiro.',
+  ]),
   'Leg press 45°': g('maquina', ['gluteos', 'posteriores'], 'waAxlYvtCcI', [
     'Sente com as costas e o quadril bem apoiados e os pés na plataforma, na largura do quadril.',
     'Destrave a plataforma segurando as alças laterais.',
@@ -393,6 +411,12 @@ export const EXERCISE_GUIDES: Record<string, ExerciseGuide> = {
     'Suba o quadril até o tronco ficar alinhado com as coxas, contraindo os glúteos.',
     'Desça com controle sem encostar o quadril no chão.',
   ]),
+  'Elevação pélvica (peso do corpo)': g('peso_corporal', ['posteriores'], '7ESBuNXXgwI', [
+    'Deite de costas com os joelhos dobrados e os pés apoiados no chão, na largura do quadril.',
+    'Deixe os braços ao lado do corpo, palmas para baixo.',
+    'Suba o quadril contraindo os glúteos até o corpo formar uma linha dos ombros aos joelhos.',
+    'Segure 1 segundo no alto e desça devagar. Para dificultar, faça com uma perna só.',
+  ]),
   'Glúteo no cabo': g('cabo', ['posteriores'], 'XYCCcD0MxN8', [
     'Prenda a tornozeleira na polia baixa e fique de frente para a máquina, segurando nela.',
     'Incline levemente o tronco e mantenha o abdômen firme.',
@@ -418,6 +442,12 @@ export const EXERCISE_GUIDES: Record<string, ExerciseGuide> = {
     'Mantenha os joelhos estendidos (sem travar) e o corpo reto.',
     'Suba na ponta dos pés o mais alto que conseguir.',
     'Desça devagar até sentir a panturrilha alongar.',
+  ]),
+  'Panturrilha em pé (peso do corpo)': g('peso_corporal', [], 'LJiPSblRWhg', [
+    'Apoie a ponta dos pés na beira de um degrau, segurando numa parede ou corrimão.',
+    'Deixe os calcanhares para fora do degrau, com os joelhos estendidos.',
+    'Suba na ponta dos pés o mais alto que conseguir.',
+    'Desça devagar até sentir a panturrilha alongar. Sem degrau, faça no chão.',
   ]),
   'Panturrilha sentada (máquina)': g('maquina', [], 'Nap62yku2ks', [
     'Sente e apoie a ponta dos pés na borda da plataforma.',
@@ -494,6 +524,12 @@ export const EXERCISE_GUIDES: Record<string, ExerciseGuide> = {
     'Comece empurrando com as pernas, depois incline o tronco levemente para trás.',
     'Termine puxando o puxador até a parte baixa do peito.',
     'Volte na ordem contrária: braços, tronco e, por último, pernas.',
+  ]),
+  Polichinelo: g('peso_corporal', ['quadriceps', 'panturrilhas', 'ombros'], 'S2uqQ9zHZMc', [
+    'Fique em pé com os pés juntos e os braços ao lado do corpo.',
+    'Salte abrindo as pernas e levando os braços acima da cabeça.',
+    'Salte de novo voltando à posição inicial.',
+    'Mantenha um ritmo constante e aterrisse com a ponta dos pés. Sem saltar: abra uma perna de cada vez.',
   ]),
 }
 

@@ -73,6 +73,7 @@ export const EXERCISE_CATALOG: CatalogExercise[] = [
     'Remada (máquina)',
     'Pulldown com braços estendidos (cabo)',
     'Levantamento terra',
+    'Superman',
   ]),
   ...c('ombros', [
     'Desenvolvimento de ombros (halteres)',
@@ -84,6 +85,7 @@ export const EXERCISE_CATALOG: CatalogExercise[] = [
     'Elevação frontal (halteres)',
     'Crucifixo inverso (máquina)',
     'Encolhimento de ombros (halteres)',
+    'Flexão pike',
   ]),
   ...c('biceps', [
     'Rosca direta (barra)',
@@ -111,12 +113,18 @@ export const EXERCISE_CATALOG: CatalogExercise[] = [
     'Cadeira extensora',
     'Afundo (halteres)',
     'Agachamento búlgaro (halteres)',
+    'Agachamento (peso do corpo)',
   ]),
   ...c('posteriores', ['Mesa flexora', 'Cadeira flexora', 'Stiff (barra)', 'Stiff (halteres)', 'Levantamento terra romeno']),
-  ...c('gluteos', ['Elevação pélvica (barra)', 'Glúteo no cabo', 'Cadeira abdutora', 'Cadeira adutora']),
-  ...c('panturrilhas', ['Panturrilha em pé (máquina)', 'Panturrilha sentada (máquina)', 'Panturrilha no leg press']),
+  ...c('gluteos', ['Elevação pélvica (barra)', 'Elevação pélvica (peso do corpo)', 'Glúteo no cabo', 'Cadeira abdutora', 'Cadeira adutora']),
+  ...c('panturrilhas', [
+    'Panturrilha em pé (máquina)',
+    'Panturrilha sentada (máquina)',
+    'Panturrilha no leg press',
+    'Panturrilha em pé (peso do corpo)',
+  ]),
   ...c('abdomen', ['Abdominal supra', 'Abdominal na máquina', 'Abdominal no cabo', 'Elevação de pernas', 'Prancha']),
-  ...c('cardio', ['Esteira', 'Bicicleta ergométrica', 'Elíptico', 'Escada', 'Remo ergômetro']),
+  ...c('cardio', ['Esteira', 'Bicicleta ergométrica', 'Elíptico', 'Escada', 'Remo ergômetro', 'Polichinelo']),
 ]
 
 /** Sem acento, sem maiúscula e sem espaço sobrando: "Supino  Reto" = "supino reto". */
@@ -149,6 +157,20 @@ export function searchExercises(
 function catalogEntry(name: string): CatalogExercise | undefined {
   const key = normalizeName(name)
   return EXERCISE_CATALOG.find((e) => normalizeName(e.name) === key)
+}
+
+/**
+ * O exercício da lista que corresponde a um nome escrito à mão (ex.: "Agachamento livre"
+ * no plano do personal): o nome exato, senão a primeira variação ("Agachamento livre (barra)").
+ */
+export function findCatalogExercise(name: string): CatalogExercise | undefined {
+  const key = normalizeName(name)
+  if (!key) return undefined
+  return (
+    catalogEntry(name) ??
+    EXERCISE_CATALOG.find((e) => normalizeName(e.name).startsWith(`${key} (`)) ??
+    EXERCISE_CATALOG.find((e) => key.startsWith(normalizeName(e.name).replace(/ \(.*\)$/, '')))
+  )
 }
 
 export function exerciseEquipment(name: string): Equipment | undefined {
