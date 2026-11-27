@@ -21,7 +21,17 @@ import {
   type PersonPlanItem,
   type TodayCheck,
 } from '../../hooks/usePlanData'
-import { ADAPTATIONS, adaptationLabel, adaptWorkout, type AdaptedExercise, type Adaptation } from '../../lib/adaptation'
+import {
+  ADAPTATIONS,
+  adaptationLabel,
+  adaptWorkout,
+  describeAdaptation,
+  SHORT_MINUTES,
+  TIME_ESTIMATE_NOTE,
+  type AdaptationChange,
+  type AdaptedExercise,
+  type Adaptation,
+} from '../../lib/adaptation'
 import type { PlanOutcome } from '../../lib/database.types'
 import { exercisePath } from '../../lib/workouts'
 import { today } from '../../lib/dates'
@@ -203,6 +213,7 @@ function ProPlan({ tab, proId, plan }: { tab: TabInfo; proId: string; plan: MyPl
                 checks={plan.checksToday}
                 options={ended ? [] : adaptationsFor(plan, proId)}
                 readOnly={ended}
+                proName={first}
               />
             ) : (
               <ul className="card divide-y divide-line py-1">
@@ -420,19 +431,21 @@ function AdaptableWorkout({
   checks,
   options,
   readOnly,
+  proName,
 }: {
   items: PersonPlanItem[]
   checks: Map<string, TodayCheck>
   options: Adaptation[]
   readOnly: boolean
+  /** Primeiro nome do personal que liberou as versões. */
+  proName: string
 }) {
   // Se a pessoa já marcou algum item numa versão hoje, a tela abre nela.
   const saved = items.map((i) => checks.get(i.id)?.adaptation).find(Boolean) ?? null
   const [mode, setMode] = useState<Adaptation | null>(saved && options.includes(saved) ? saved : null)
-  const adapted = adaptWorkout(
-    items.map((i) => ({ name: i.title, sets: i.sets ?? 1, reps: i.reps ?? '', load: i.load })),
-    mode,
-  )
+  const original = items.map((i) => ({ name: i.title, sets: i.sets ?? 1, reps: i.reps ?? '', load: i.load }))
+  const adapted = adaptWorkout(original, mode)
+  const change = mode ? describeAdaptation(original, adapted) : null
   const choices = ADAPTATIONS.filter((a) => options.includes(a.value))
 
   return (
@@ -455,7 +468,7 @@ function AdaptableWorkout({
               </button>
             ))}
           </div>
-          {mode && <p className="text-xs text-muted">{ADAPTATIONS.find((a) => a.value === mode)?.hint}</p>}
+          {mode && change && <AdaptationNote mode={mode} change={change} proName={proName} />}
         </div>
       )}
       <ul className="card divide-y divide-line py-1">
@@ -471,6 +484,51 @@ function AdaptableWorkout({
           />
         ))}
       </ul>
+    </div>
+  )
+}
+
+/**
+ * O que a versão do dia muda, dito sem adivinhação: quem liberou, o que saiu,
+ * o que perdeu séries. Se nada muda, explica por quê.
+ */
+function AdaptationNote({ mode, change, proName }: { mode: Adaptation; change: AdaptationChange; proName: string }) {
+  const hint = ADAPTATIONS.find((a) => a.value === mode)?.hint
+  const lines = [
+    ...change.fewerSets,
+    ...change.replaced,
+    ...(change.skipped.length ? [`Fica de fora: ${change.skipped.join(', ')}`] : []),
+  ]
+  return (
+    <div className="space-y-1 rounded-xl bg-surface px-3 py-2 text-xs text-muted" aria-live="polite">
+      <p>
+        <span className="font-semibold text-ink">Versão liberada por {proName}:</span> {hint}
+      </p>
+      {mode === 'curto' && change.unchanged ? (
+        <p className="font-semibold text-ink">
+          Seu treino completo leva uns {change.fullMinutes} min, então já cabe em {SHORT_MINUTES} minutos: hoje é o
+          mesmo treino, com os mesmos exercícios e séries.
+        </p>
+      ) : change.unchanged ? (
+        <p className="font-semibold text-ink">Nada muda no treino de hoje.</p>
+      ) : (
+        <>
+          <p className="font-semibold text-ink">O que muda hoje:</p>
+          <ul className="list-disc pl-4">
+            {lines.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+          {mode === 'leve' && <p>A carga continua a combinada com {proName}.</p>}
+        </>
+      )}
+      {mode === 'curto' && (
+        <p>
+          {change.unchanged
+            ? `(${TIME_ESTIMATE_NOTE}.)`
+            : `Treino completo: uns ${change.fullMinutes} min. Versão de hoje: uns ${change.adaptedMinutes} min (${TIME_ESTIMATE_NOTE}).`}
+        </p>
+      )}
     </div>
   )
 }

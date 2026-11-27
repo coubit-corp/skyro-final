@@ -6,8 +6,8 @@ import { DemoBanner } from '../../components/DemoBanner'
 import { PlanEditor } from '../../components/PlanEditor'
 import { ErrorState, SectionTitle, Skeleton } from '../../components/ui'
 import { useAiSummary, useMyProfessional, usePatient, usePatientTeam, useSendTip } from '../../hooks/useProData'
-import { evaluatePatient } from '../../lib/alerts'
-import { addDays, formatHours, formatMinutes, today, weekdayShort } from '../../lib/dates'
+import { evaluatePatient, RULE_TEXT, type Alert } from '../../lib/alerts'
+import { addDays, dayOfMonth, formatHours, formatMinutes, today, weekdayShort } from '../../lib/dates'
 import { SHARED_DATA, specialtyLabel } from '../../lib/specialties'
 import { currentStreak } from '../../lib/streak'
 import { buildWeekSummary } from '../../lib/weekSummary'
@@ -139,9 +139,12 @@ export function Paciente() {
               <p className="flex items-center gap-2 text-sm font-semibold text-attention">
                 <AlertTriangle className="h-4 w-4" aria-hidden="true" /> Precisa de atenção
               </p>
-              <ul className="mt-2 space-y-1 text-sm">
+              <ul className="mt-2 space-y-2 text-sm">
                 {e.alerts.map((a) => (
-                  <li key={a.kind}>• {a.message}</li>
+                  <li key={a.kind}>
+                    <p>• {a.message}</p>
+                    <AlertBasis alert={a} />
+                  </li>
                 ))}
               </ul>
             </div>
@@ -274,5 +277,21 @@ export function Paciente() {
 
       <DemoBanner />
     </section>
+  )
+}
+
+/** Por que o alerta apareceu: a regra do app e os registros que a atingiram. */
+function AlertBasis({ alert }: { alert: Alert }) {
+  const dates = alert.dates ?? []
+  return (
+    <p className="ml-3 text-xs text-muted">
+      Regra: {RULE_TEXT[alert.kind]}
+      {dates.length > 0 && (
+        <>
+          {' '}
+          Registros: {dates.map((d) => `${weekdayShort(d).toLowerCase()} ${dayOfMonth(d)}`).join(', ')}.
+        </>
+      )}
+    </p>
   )
 }
