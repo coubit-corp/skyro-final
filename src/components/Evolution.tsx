@@ -163,7 +163,8 @@ function TimelineRow({ item: i, todayIso, canDelete }: { item: EvolutionItem; to
   )
 }
 
-function ImportModal({ todayIso, onClose }: { todayIso: string; onClose: () => void }) {
+/** Importar treinos de musculação do Hevy (arquivo CSV). */
+export function ImportModal({ todayIso, onClose }: { todayIso: string; onClose: () => void }) {
   const save = useImportWorkouts()
   const input = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<HevyPreview | null>(null)
