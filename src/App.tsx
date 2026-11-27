@@ -29,6 +29,7 @@ import { Configuracoes } from './pages/Configuracoes'
 import { ConfigMissing } from './pages/ConfigMissing'
 import { Convite } from './pages/Convite'
 import { Login } from './pages/Login'
+import { NovaSenha } from './pages/NovaSenha'
 import { NotFound } from './pages/NotFound'
 
 // Cada tela é baixada só quando é aberta: o celular não precisa carregar o
@@ -121,6 +122,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/entrar" element={<Login />} />
+              <Route path="/nova-senha" element={<NovaSenha />} />
               <Route path="/convite/:id" element={<Convite />} />
 
               {/* App da pessoa */}

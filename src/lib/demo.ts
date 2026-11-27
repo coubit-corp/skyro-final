@@ -6,8 +6,8 @@
 const PASSWORD = 'skyro-demo-2026'
 
 export const DEMO_ACCOUNTS = {
-  person: { email: 'demo.pessoa@skyro.app', password: PASSWORD, label: 'Entrar como pessoa (demo)' },
-  professional: { email: 'demo.nutri@skyro.app', password: PASSWORD, label: 'Entrar como profissional (demo)' },
+  person: { email: 'demo.pessoa@skyro.app', password: PASSWORD, label: 'Entrar como pessoa (demo)', who: 'Lucas, acompanhado por nutricionista, personal e psicólogo' },
+  professional: { email: 'demo.nutri@skyro.app', password: PASSWORD, label: 'Entrar como profissional (demo)', who: 'Ana, nutricionista com 6 clientes' },
   // Equipe: o banco só deixa esta conta aprovar ou recusar perfis de demonstração.
-  team: { email: 'demo.equipe@skyro.app', password: PASSWORD, label: 'Entrar como equipe (demo)' },
+  team: { email: 'demo.equipe@skyro.app', password: PASSWORD, label: 'Entrar como equipe (demo)', who: 'Aprova cadastros de profissionais' },
 } as const
