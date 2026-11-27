@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/auth-context'
 import type { PlanCheck, PlanItem, PlanNote, PlanOutcome, ProfileBrief, Share, Specialty } from '../lib/database.types'
 import { addDays, today } from '../lib/dates'
+import { toGalleryJpeg } from '../lib/image'
 import type { toPlanItemRow } from '../lib/plan'
 import { PRO_PROFILE, supabase } from '../lib/supabase'
 
@@ -27,7 +28,7 @@ function useUserId(): string {
 
 // ------------------------------------------------------------------ pessoa
 
-export type TodayCheck = Pick<PlanCheck, 'outcome' | 'note'>
+export type TodayCheck = Pick<PlanCheck, 'outcome' | 'note' | 'photo_path'>
 
 export interface MyPlan {
   items: PersonPlanItem[]
@@ -52,7 +53,7 @@ export function useMyPlan() {
           .eq('person_id', userId)
           .order('position'),
         supabase.from('plan_notes').select('*').eq('person_id', userId),
-        supabase.from('plan_checks').select('item_id, outcome, note').eq('person_id', userId).eq('check_date', todayIso),
+        supabase.from('plan_checks').select('*').eq('person_id', userId).eq('check_date', todayIso),
         supabase
           .from('shares')
           .select(`*, professionals(specialty, ${PRO_PROFILE})`)
@@ -70,7 +71,10 @@ export function useMyPlan() {
         items: unwrap<PersonPlanItem[]>(items),
         notes: unwrap<PlanNote[]>(notes),
         checksToday: new Map(
-          unwrap<(TodayCheck & { item_id: string })[]>(checks).map(({ item_id, ...c }) => [item_id, c]),
+          unwrap<(TodayCheck & { item_id: string })[]>(checks).map((c) => [
+            c.item_id,
+            { outcome: c.outcome, note: c.note, photo_path: c.photo_path ?? null },
+          ]),
         ),
         shares: byPro,
         painToday: unwrap<{ pain_level: number | null } | null>(log)?.pain_level ?? null,
@@ -88,10 +92,16 @@ export function useSetPlanCheck() {
       itemId,
       outcome,
       note = null,
+      photoPath,
+      removePhoto = null,
     }: {
       itemId: string
       outcome: PlanOutcome | null
       note?: string | null
+      /** Foto da refeição. Ausente: mantém a que já estava. */
+      photoPath?: string | null
+      /** Ao apagar o registro, a foto dele (para não sobrar arquivo sem uso). */
+      removePhoto?: string | null
     }) => {
       const date = today()
       if (outcome) {
@@ -99,12 +109,21 @@ export function useSetPlanCheck() {
           await supabase
             .from('plan_checks')
             .upsert(
-              { item_id: itemId, person_id: userId, check_date: date, outcome, note: note?.trim() || null },
+              {
+                item_id: itemId,
+                person_id: userId,
+                check_date: date,
+                outcome,
+                note: note?.trim() || null,
+                // Só manda a coluna quando muda: sem a migration de nutrição, o resto continua funcionando.
+                ...(photoPath !== undefined ? { photo_path: photoPath } : {}),
+              },
               { onConflict: 'item_id,check_date' },
             ),
         )
       } else {
         unwrap(await supabase.from('plan_checks').delete().eq('item_id', itemId).eq('check_date', date))
+        if (removePhoto) await supabase.storage.from(MEAL_PHOTO_BUCKET).remove([removePhoto])
       }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['plan', userId] }),
@@ -135,7 +154,7 @@ export interface PatientPlan {
   items: PlanItem[]
   note: PlanNote | null
   /** Marcações dos últimos 8 dias (para a adesão da semana) */
-  checks: Pick<PlanCheck, 'item_id' | 'check_date' | 'outcome' | 'note'>[]
+  checks: Pick<PlanCheck, 'item_id' | 'check_date' | 'outcome' | 'note' | 'photo_path'>[]
 }
 
 export function usePatientPlan(personId: string | undefined) {
@@ -149,7 +168,7 @@ export function usePatientPlan(personId: string | undefined) {
         supabase.from('plan_notes').select('*').eq('professional_id', proId).eq('person_id', personId!).maybeSingle(),
         supabase
           .from('plan_checks')
-          .select('item_id, check_date, outcome, note')
+          .select('*')
           .eq('person_id', personId!)
           .gte('check_date', addDays(today(), -8)),
       ])
@@ -202,5 +221,108 @@ export function useSavePlanNote(personId: string) {
       else unwrap(await supabase.from('plan_notes').insert({ ...where, note: text }))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['patient_plan', proId, personId] }),
+  })
+}
+
+// ------------------------------------------------------------ fotos das refeições
+
+export const MEAL_PHOTO_BUCKET = 'meal-photos'
+
+/** Links temporários (1 h) das fotos das refeições. O bucket é privado: quem pode ver, o banco decide. */
+export function useMealPhotoUrls(paths: string[]) {
+  const key = [...new Set(paths)].sort()
+  return useQuery({
+    queryKey: ['meal_photos', key],
+    enabled: key.length > 0,
+    staleTime: 30 * 60 * 1000,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await supabase.storage.from(MEAL_PHOTO_BUCKET).createSignedUrls(key, 3600)
+      if (error) return new Map()
+      const out = new Map<string, string>()
+      for (const d of data ?? []) if (d.path && d.signedUrl) out.set(d.path, d.signedUrl)
+      return out
+    },
+  })
+}
+
+/** Substituições que a pessoa salvou. Vazio se o banco ainda não tiver a tabela. */
+export function useMealFavorites() {
+  const userId = useUserId()
+  return useQuery({
+    queryKey: ['meal_favorites', userId],
+    queryFn: async (): Promise<{ id: string; label: string }[]> => {
+      const { data, error } = await supabase.from('meal_favorites').select('id, label').order('created_at')
+      return error ? [] : (data ?? [])
+    },
+  })
+}
+
+export function useAddMealFavorite() {
+  const userId = useUserId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (label: string) => {
+      const { error } = await supabase.from('meal_favorites').insert({ label: label.trim() })
+      if (error && !/duplicate key/i.test(error.message)) {
+        throw new Error(/limite_de_favoritas/.test(error.message) ? 'Você chegou ao limite de 30 favoritas.' : error.message)
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['meal_favorites', userId] }),
+  })
+}
+
+export function useRemoveMealFavorite() {
+  const userId = useUserId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap(await supabase.from('meal_favorites').delete().eq('id', id)),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['meal_favorites', userId] }),
+  })
+}
+
+/**
+ * Envia a foto da refeição (reduzida no aparelho, sem localização) para
+ * <pessoa>/<nutricionista>/<item>-<data>.jpg e guarda no registro do dia.
+ */
+export function useMealPhoto() {
+  const userId = useUserId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      item,
+      outcome,
+      note,
+      file,
+      previous,
+    }: {
+      item: Pick<PlanItem, 'id' | 'professional_id'>
+      outcome: PlanOutcome
+      note: string | null
+      /** null remove a foto. */
+      file: File | null
+      previous: string | null
+    }) => {
+      const date = today()
+      let path: string | null = null
+      if (file) {
+        const blob = await toGalleryJpeg(file)
+        // Nome novo a cada envio: o link temporário antigo não mostra a foto errada.
+        path = `${userId}/${item.professional_id}/${item.id}-${date}-${Date.now()}.jpg`
+        const up = await supabase.storage.from(MEAL_PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' })
+        if (up.error) throw new Error('Não deu para enviar a foto. Tente de novo.')
+      }
+      const { error } = await supabase
+        .from('plan_checks')
+        .upsert(
+          { item_id: item.id, person_id: userId, check_date: date, outcome, note: note?.trim() || null, photo_path: path },
+          { onConflict: 'item_id,check_date' },
+        )
+      if (error) {
+        if (path) await supabase.storage.from(MEAL_PHOTO_BUCKET).remove([path])
+        throw new Error(error.message)
+      }
+      if (previous && previous !== path) await supabase.storage.from(MEAL_PHOTO_BUCKET).remove([previous])
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['plan', userId] }),
   })
 }
