@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/auth-context'
 import { DemoBanner } from '../components/DemoBanner'
+import { ImportFromApps } from '../components/ImportFromApps'
 import { SignOutButton } from '../components/SignOutButton'
 import { ThemePicker } from '../components/ThemePicker'
 import { ProfileTabs } from '../components/ProfileTabs'
@@ -33,6 +34,8 @@ export function Configuracoes() {
       />
 
       {isPerson && <Perfil />}
+
+      {isPerson && <ImportFromApps />}
 
       {isPro && (
         <div className="space-y-4">
