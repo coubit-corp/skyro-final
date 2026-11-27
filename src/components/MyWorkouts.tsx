@@ -2,10 +2,11 @@ import { BookOpen, ChevronRight, Dumbbell, Pencil, Play, Plus } from 'lucide-rea
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/auth-context'
-import { useRoutines, useWorkoutHistory } from '../hooks/useWorkouts'
+import { useRoutines, useWorkoutHistory, WORKOUTS_NOT_ACTIVE } from '../hooks/useWorkouts'
 import { todayBRT } from '../lib/dates'
 import { muscleLabel, muscleSets, readDraft, startWorkout, writeDraft, type Routine } from '../lib/workouts'
 import { BodyMap } from './ExerciseGuide'
+import { ErrorState, Skeleton } from './ui'
 
 /** Treinos que a própria pessoa montou, com ou sem profissional. Fica na aba Treino do plano. */
 export function MyWorkouts() {
@@ -16,8 +17,22 @@ export function MyWorkouts() {
   const [draft, setDraft] = useState(() => (me ? readDraft(me) : null))
   const week = useMemo(() => muscleSets(history.data ?? [], todayBRT()), [history.data])
 
-  // Sem a migration no banco, a seção não aparece.
-  if (!me || !routines.data) return null
+  if (!me) return null
+  if (!routines.data) {
+    // Antes a seção sumia sem explicação; agora diz o que falta.
+    return (
+      <section aria-label="Meus treinos" className="space-y-3">
+        <h2 className="text-lg font-bold">Meus treinos</h2>
+        {routines.isLoading ? (
+          <Skeleton className="h-32" />
+        ) : routines.error ? (
+          <ErrorState message={`Não deu para carregar seus treinos. (${routines.error.message})`} onRetry={() => routines.refetch()} />
+        ) : (
+          <p className="card text-sm text-muted">{WORKOUTS_NOT_ACTIVE}</p>
+        )}
+      </section>
+    )
+  }
 
   const start = (r: Routine | null) => {
     writeDraft(me, startWorkout(r, Date.now()))

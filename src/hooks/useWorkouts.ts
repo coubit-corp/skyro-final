@@ -18,16 +18,23 @@ import {
 } from '../lib/workouts'
 
 /** O banco ainda não tem a tabela (migration não aplicada)? */
-function isUnavailable(error: { message: string }): boolean {
+export function isUnavailable(error: { message: string }): boolean {
   return /schema cache|does not exist|could not find/i.test(error.message)
 }
 
+const NOT_ACTIVE = 'Meus treinos ainda não foi ativado no banco de dados (falta rodar a migration 20261127000006_meus_treinos.sql).'
+
 function friendly(message: string): string {
   if (/limite_de_treinos/.test(message)) return 'Você chegou ao limite de 30 treinos montados. Apague um para criar outro.'
-  return 'Não deu para salvar. Tente de novo.'
+  if (isUnavailable({ message })) return NOT_ACTIVE
+  if (/permission denied|row-level security/i.test(message)) return `Sem permissão para salvar no banco (${message}).`
+  // O motivo real ajuda quem administra o app a corrigir.
+  return `Não deu para salvar. Tente de novo. (${message})`
 }
 
 /** Treinos montados pela pessoa. null = recurso ainda não ativado no banco. */
+export { NOT_ACTIVE as WORKOUTS_NOT_ACTIVE }
+
 export function useRoutines() {
   const me = useAuth().session?.user.id
   return useQuery({
