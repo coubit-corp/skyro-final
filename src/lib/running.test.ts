@@ -150,11 +150,24 @@ describe('buildRunPlan', () => {
 })
 
 describe('planProgress', () => {
-  it('conta as sessões já devidas que têm corrida no mesmo dia', () => {
-    const s = buildRunPlan({ goal: '5k', days_per_week: 2, level: 'intermediario', starts_on: '2026-11-23' })
-    const p = planProgress(s, new Set(['2026-11-24']), '2026-11-28')
-    expect(p).toMatchObject({ done: 1, due: 2, total: 16, week: 1 })
-    expect(p.today?.date).toBe('2026-11-28')
+  const s = buildRunPlan({ goal: '5k', days_per_week: 2, level: 'intermediario', starts_on: '2026-11-23' }) // terça 24 e sábado 28
+
+  it('corrida em outro dia da mesma semana conta para a sessão da semana', () => {
+    const p = planProgress(s, new Set(['2026-11-25']), '2026-11-27') // correu na quarta
+    expect(p).toMatchObject({ done: 1, due: 1, total: 16, week: 1 })
+    expect(p.doneDates.has('2026-11-24')).toBe(true)
     expect(p.next?.date).toBe('2026-11-28')
+  })
+
+  it('corridas a mais na semana não passam para a semana seguinte; futuras e antes do início não contam', () => {
+    const p = planProgress(s, new Set(['2026-11-24', '2026-11-25', '2026-11-26', '2026-11-20', '2026-12-01']), '2026-11-28')
+    expect(p.done).toBe(2)
+    expect(p.doneDates.has('2026-12-01')).toBe(false)
+  })
+
+  it('a próxima sessão pula a de hoje se já foi feita', () => {
+    const p = planProgress(s, new Set(['2026-11-24', '2026-11-28']), '2026-11-28')
+    expect(p.today?.date).toBe('2026-11-28')
+    expect(p.next?.date).toBe('2026-12-01')
   })
 })

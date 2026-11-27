@@ -366,20 +366,41 @@ export function buildRunPlan(plan: RunPlan): RunSession[] {
   return out.filter((x) => x.date >= plan.starts_on)
 }
 
-/** Sessões feitas: há uma corrida registrada no mesmo dia. */
+/**
+ * Sessões feitas: corridas da mesma semana do plano preenchem as sessões daquela
+ * semana, em ordem (correu na quarta em vez da terça: a sessão de terça conta).
+ * Só valem corridas até hoje e a partir do início do plano.
+ */
+export function doneSessions(sessions: RunSession[], runDates: Set<string>, todayIso: string): Set<string> {
+  const done = new Set<string>()
+  const weeks = new Map<number, RunSession[]>()
+  for (const s of sessions) weeks.set(s.week, [...(weeks.get(s.week) ?? []), s])
+  for (const list of weeks.values()) {
+    const first = list[0].date
+    const monday = addDays(first, 1 - isoWeekday(first))
+    const sunday = addDays(monday, 6)
+    const runs = [...runDates].filter((d) => d >= monday && d <= sunday && d <= todayIso && d >= sessions[0].date).length
+    list.slice(0, runs).forEach((s) => done.add(s.date))
+  }
+  return done
+}
+
 export function planProgress(
   sessions: RunSession[],
   runDates: Set<string>,
   todayIso: string,
-): { done: number; due: number; total: number; next: RunSession | null; today: RunSession | null; week: number } {
+): { done: number; due: number; total: number; next: RunSession | null; today: RunSession | null; week: number; doneDates: Set<string> } {
+  const doneDates = doneSessions(sessions, runDates, todayIso)
   const due = sessions.filter((s) => s.date <= todayIso)
-  const next = sessions.find((s) => s.date >= todayIso) ?? null
+  // A próxima é a primeira ainda não feita a partir de hoje.
+  const next = sessions.find((s) => s.date >= todayIso && !doneDates.has(s.date)) ?? null
   return {
-    done: due.filter((s) => runDates.has(s.date)).length,
+    done: due.filter((s) => doneDates.has(s.date)).length,
     due: due.length,
     total: sessions.length,
     next,
     today: sessions.find((s) => s.date === todayIso) ?? null,
     week: next?.week ?? sessions.at(-1)?.week ?? 1,
+    doneDates,
   }
 }
