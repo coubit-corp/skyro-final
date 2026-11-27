@@ -3,17 +3,23 @@ import type { PlanItem } from './database.types'
 import {
   adherence,
   dayHeadline,
+  hasNutrition,
   initialPlanValues,
   isoWeekday,
   isValidVideoUrl,
   itemDetail,
   itemsForDay,
   kindForSpecialty,
-  plannedFirst,
   lastWeekDays,
+  macrosLabel,
+  mealDays,
+  parseAlternatives,
+  plannedFirst,
+  sumMacros,
   toPlanItemRow,
   validatePlanItem,
   weekdaysLabel,
+  type PlanItemValues,
 } from './plan'
 
 function item(over: Partial<PlanItem>): PlanItem {
@@ -140,5 +146,72 @@ describe('plannedFirst', () => {
   it('não muda nada quando todos têm plano ou ninguém tem', () => {
     expect(plannedFirst(['a', 'b'], () => true)).toEqual(['a', 'b'])
     expect(plannedFirst(['a', 'b'], () => false)).toEqual(['a', 'b'])
+  })
+})
+
+describe('nutrição: macros, substituições e resumo da semana', () => {
+  const values = (patch: Partial<PlanItemValues> = {}): PlanItemValues => ({
+    ...initialPlanValues(null),
+    title: 'Almoço',
+    mealTime: '12:30',
+    foods: 'Arroz e feijão',
+    ...patch,
+  })
+
+  it('parseAlternatives: uma por linha, sem vazias nem repetidas', () => {
+    expect(parseAlternatives(' Macarrão \n\nmacarrão\nOmelete ')).toEqual(['Macarrão', 'Omelete'])
+  })
+
+  it('valida calorias, gramas e substituições', () => {
+    expect(validatePlanItem('refeicao', values({ kcal: '600', protein: '40,5', alternatives: 'a\nb' }))).toEqual({})
+    const e = validatePlanItem('refeicao', values({ kcal: '600.5', fat: '700', alternatives: 'a\nb\nc\nd\ne\nf' }))
+    expect(Object.keys(e).sort()).toEqual(['alternatives', 'fat', 'kcal'])
+    expect(validatePlanItem('refeicao', values({ carbs: '10,25' })).carbs).toBeDefined()
+  })
+
+  it('só manda os campos de nutrição quando foram usados', () => {
+    expect(toPlanItemRow('refeicao', values())).not.toHaveProperty('kcal')
+    expect(hasNutrition(values())).toBe(false)
+    const v = values({ kcal: '600', protein: '40,5', showMacros: true, alternatives: 'Omelete' })
+    expect(hasNutrition(v)).toBe(true)
+    expect(toPlanItemRow('refeicao', v, true)).toMatchObject({
+      kcal: 600,
+      protein_g: 40.5,
+      carbs_g: null,
+      fat_g: null,
+      show_macros: true,
+      alternatives: ['Omelete'],
+    })
+    // Treino nunca leva campos de nutrição.
+    expect(toPlanItemRow('treino', { ...v, sets: '3' }, true)).not.toHaveProperty('kcal')
+  })
+
+  it('initialPlanValues volta os números no formato brasileiro', () => {
+    const v = initialPlanValues({ kcal: 600, protein_g: 40.5, carbs_g: null, fat_g: 15, show_macros: true, alternatives: ['a', 'b'] } as never)
+    expect(v).toMatchObject({ kcal: '600', protein: '40,5', carbs: '', fat: '15', showMacros: true, alternatives: 'a\nb' })
+  })
+
+  it('macrosLabel e sumMacros', () => {
+    expect(macrosLabel({ kcal: 600, protein_g: 40.5, carbs_g: null, fat_g: 15 })).toBe('600 kcal · P 40,5 g · G 15 g')
+    expect(macrosLabel({})).toBe('')
+    expect(sumMacros([{ kcal: 600, protein_g: 40 }, { kcal: 300, carbs_g: 50 }, {}])).toEqual({ kcal: 900, protein: 40, carbs: 50, fat: 0 })
+  })
+
+  it('mealDays separa como planejado, substituído, não conseguiu e sem registro', () => {
+    const monday = '2026-11-23'
+    const items = [
+      { id: 'a', kind: 'refeicao' as const, weekdays: [1, 2], kcal: 500 },
+      { id: 'b', kind: 'refeicao' as const, weekdays: [1], kcal: 300 },
+      { id: 'c', kind: 'refeicao' as const, weekdays: [1], kcal: null },
+      { id: 't', kind: 'treino' as const, weekdays: [1], kcal: null },
+    ]
+    const checks = [
+      { item_id: 'a', check_date: monday, outcome: 'feito' as const },
+      { item_id: 'b', check_date: monday, outcome: 'substituido' as const },
+    ]
+    expect(mealDays(items, checks, [monday, '2026-11-24'])).toEqual([
+      { date: monday, planned: 3, asPlanned: 1, substituted: 1, missed: 0, unknown: 1, kcalPlanned: 800, kcalAsPlanned: 500 },
+      { date: '2026-11-24', planned: 1, asPlanned: 0, substituted: 0, missed: 0, unknown: 1, kcalPlanned: 500, kcalAsPlanned: 0 },
+    ])
   })
 })
