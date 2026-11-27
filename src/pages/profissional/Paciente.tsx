@@ -5,10 +5,10 @@ import { Avatar } from '../../components/Avatar'
 import { DemoBanner } from '../../components/DemoBanner'
 import { PlanEditor } from '../../components/PlanEditor'
 import { ErrorState, SectionTitle, Skeleton } from '../../components/ui'
-import { useAiSummary, useMyProfessional, usePatient, useSendTip } from '../../hooks/useProData'
+import { useAiSummary, useMyProfessional, usePatient, usePatientTeam, useSendTip } from '../../hooks/useProData'
 import { evaluatePatient } from '../../lib/alerts'
 import { addDays, formatHours, formatMinutes, today, weekdayShort } from '../../lib/dates'
-import { SHARED_DATA } from '../../lib/specialties'
+import { SHARED_DATA, specialtyLabel } from '../../lib/specialties'
 import { currentStreak } from '../../lib/streak'
 import { buildWeekSummary } from '../../lib/weekSummary'
 
@@ -23,6 +23,7 @@ function monthsSince(iso: string): string {
 export function Paciente() {
   const { id } = useParams()
   const patient = usePatient(id)
+  const team = usePatientTeam(id)
   const me = useMyProfessional()
   const sendTip = useSendTip()
   const [tip, setTip] = useState('')
@@ -107,6 +108,12 @@ export function Paciente() {
           <span key={d} className="chip">{d.toLowerCase()}</span>
         ))}
       </div>
+      {(team.data?.length ?? 0) > 0 && (
+        <p className="text-sm text-muted">
+          Também acompanham:{' '}
+          {team.data!.map((t) => `${t.firstName} (${specialtyLabel(t.specialty).toLowerCase()})`).join(', ')}
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-4">

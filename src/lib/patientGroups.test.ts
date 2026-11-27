@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Alert } from './alerts'
-import { attentionSummary, groupOf, groupPatients, nextAction } from './patientGroups'
+import { toISODate } from './dates'
+import { agoLabel, attentionSummary, groupOf, groupPatients, latest, nextAction, responsibleFor } from './patientGroups'
 
 const alert = (kind: Alert['kind']): Alert => ({ kind, message: kind })
 const atencao = (...kinds: Alert['kind'][]) => ({ status: 'atencao' as const, alerts: kinds.map(alert) })
@@ -79,5 +80,44 @@ describe('nextAction', () => {
 
   it('sem alerta, só acompanhar', () => {
     expect(nextAction(emDia)).toBe('acompanhar')
+  })
+})
+
+describe('responsibleFor', () => {
+  const team = [
+    { professionalId: 'n', specialty: 'nutricionista' as const, firstName: 'Nina' },
+    { professionalId: 'p', specialty: 'personal' as const, firstName: 'Paula' },
+  ]
+  it('sem alerta, ninguém', () => {
+    expect(responsibleFor([], 'personal', team)).toBeNull()
+  })
+  it('água é com a nutricionista da equipe', () => {
+    expect(responsibleFor([{ kind: 'agua' }], 'personal', team)).toEqual({ label: 'Nina (nutricionista)', isMe: false })
+  })
+  it('é você quando a área do alerta é a sua', () => {
+    expect(responsibleFor([{ kind: 'treino' }], 'personal', team)).toEqual({ label: 'Você', isMe: true })
+  })
+  it('é você quando ninguém da área está na equipe ou o alerta é só falta de registro', () => {
+    expect(responsibleFor([{ kind: 'sono' }], 'personal', team)).toEqual({ label: 'Você', isMe: true })
+    expect(responsibleFor([{ kind: 'sem_registro' }], 'nutricionista', team)).toEqual({ label: 'Você', isMe: true })
+  })
+  it('pula o alerta cuja área não tem ninguém na equipe', () => {
+    expect(responsibleFor([{ kind: 'sono' }, { kind: 'agua' }], 'personal', team)?.label).toBe('Nina (nutricionista)')
+  })
+  it('usa o primeiro alerta que tem área', () => {
+    expect(responsibleFor([{ kind: 'sem_registro' }, { kind: 'treino' }], 'nutricionista', team)?.label).toBe('Paula (personal)')
+  })
+})
+
+describe('agoLabel e latest', () => {
+  it('conta os dias no fuso do aparelho', () => {
+    const today = toISODate(new Date())
+    expect(agoLabel(new Date().toISOString(), today)).toBe('hoje')
+    expect(agoLabel(new Date(Date.now() - 86_400_000).toISOString(), today)).toBe('ontem')
+    expect(agoLabel(new Date(Date.now() - 5 * 86_400_000).toISOString(), today)).toBe('há 5 dias')
+  })
+  it('latest ignora vazios', () => {
+    expect(latest(null, '2026-11-20T10:00:00+00:00', undefined, '2026-11-25T10:00:00+00:00')).toBe('2026-11-25T10:00:00+00:00')
+    expect(latest(null, undefined)).toBeNull()
   })
 })
