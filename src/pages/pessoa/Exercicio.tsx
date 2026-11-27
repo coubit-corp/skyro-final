@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { ExerciseSteps, ExerciseTags, ExerciseVideo } from '../../components/ExerciseGuide'
 import { ChipTabs, ErrorState, PageHeader, Skeleton } from '../../components/ui'
-import { useWorkoutHistory } from '../../hooks/useWorkouts'
+import { useKnownExercises, useWorkoutHistory } from '../../hooks/useWorkouts'
 import { todayBRT } from '../../lib/dates'
+import { equipmentLabel } from '../../lib/exerciseGuide'
 import { evolutionDate } from '../../lib/evolution'
-import { EXERCISE_CATALOG, exerciseStats, formatKg, muscleLabel, normalizeName, setLabel } from '../../lib/workouts'
+import { exerciseEquipment, exerciseInfo, exercisePath, exerciseStats, formatKg, muscleLabel, setLabel, similarExercises, type ExerciseBack } from '../../lib/workouts'
 
 type Metric = 'maxKg' | 'best1rm'
 const METRICS: { value: Metric; label: string }[] = [
@@ -12,24 +14,64 @@ const METRICS: { value: Metric; label: string }[] = [
   { value: 'best1rm', label: 'Máximo para 1 repetição' },
 ]
 
-/** Resumo de um exercício: gráfico de carga, recordes pessoais e histórico. */
+type Tab = 'como' | 'resumo' | 'historico'
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'como', label: 'Como fazer' },
+  { value: 'resumo', label: 'Resumo' },
+  { value: 'historico', label: 'Histórico' },
+]
+
+/** Um exercício: vídeo e passo a passo, gráfico de carga, recordes pessoais e histórico. */
 export function Exercicio() {
   const name = useParams().nome ?? ''
+  const back = (useLocation().state as ExerciseBack | null)?.back ?? { to: '/plano/exercicios', label: 'Exercícios' }
   const todayIso = todayBRT()
   const history = useWorkoutHistory()
+  const known = useKnownExercises()
+  const [tab, setTab] = useState<Tab>('como')
   const [metric, setMetric] = useState<Metric>('maxKg')
   const stats = useMemo(() => exerciseStats(history.data ?? [], name), [history.data, name])
-  const muscle = EXERCISE_CATALOG.find((e) => normalizeName(e.name) === normalizeName(name))?.muscle
+  const info = useMemo(() => exerciseInfo(name, known), [name, known])
+  const similar = info.fromCatalog ? similarExercises(info.name, info.muscle) : []
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={name}
-        subtitle={muscle ? `Primário: ${muscleLabel(muscle)}` : undefined}
-        back={{ to: '/plano', label: 'Meu plano' }}
-      />
+      <PageHeader title={info.name} subtitle={`Principal: ${muscleLabel(info.muscle)}`} back={back} />
 
-      {history.isLoading ? (
+      <ExerciseVideo key={info.name} name={info.name} video={info.video} />
+
+      <ChipTabs label="Seções do exercício" options={TABS} value={tab} onChange={setTab} />
+
+      {tab === 'como' ? (
+        <>
+          <div className="card space-y-4">
+            <ExerciseTags info={info} />
+            <ExerciseSteps info={info} />
+          </div>
+          {similar.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-lg font-bold">Exercícios parecidos</h2>
+              <ul className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+                {similar.map((e) => {
+                  const eq = exerciseEquipment(e.name)
+                  return (
+                    <li key={e.name} className="w-40 shrink-0">
+                      <Link
+                        to={exercisePath(e.name)}
+                        state={{ back }}
+                        className="card block h-full space-y-1 p-3 text-sm transition hover:border-ink/40"
+                      >
+                        <span className="block font-semibold break-words">{e.name}</span>
+                        {eq && <span className="block text-xs text-muted">{equipmentLabel(eq)}</span>}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+        </>
+      ) : history.isLoading ? (
         <Skeleton className="h-56" />
       ) : history.error ? (
         <ErrorState message={history.error.message} onRetry={() => history.refetch()} />
@@ -38,7 +80,7 @@ export function Exercicio() {
           <p className="font-semibold">Nenhuma série registrada ainda</p>
           <p className="text-muted">Complete sua primeira série para ver aqui seu melhor peso e sua evolução.</p>
         </div>
-      ) : (
+      ) : tab === 'resumo' ? (
         <>
           {stats.points.length > 0 && (
             <div className="card space-y-3">
@@ -60,27 +102,24 @@ export function Exercicio() {
               />
             </dl>
           </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-bold">Histórico</h2>
-            <ul className="space-y-3">
-              {stats.sessions.slice(0, 30).map((s) => (
-                <li key={s.id} className="card space-y-1 text-sm">
-                  <p className="font-semibold break-words">{s.title}</p>
-                  <p className="text-xs text-muted">{evolutionDate(s.date, todayIso)}</p>
-                  {s.note && <p className="pt-1 break-words">Nota: {s.note}</p>}
-                  <ol className="pt-1 text-muted">
-                    {s.sets.map((x, i) => (
-                      <li key={i}>
-                        <span className="inline-block w-6 font-semibold text-ink">{i + 1}</span> {setLabel(x)}
-                      </li>
-                    ))}
-                  </ol>
-                </li>
-              ))}
-            </ul>
-          </div>
         </>
+      ) : (
+        <ul className="space-y-3">
+          {stats.sessions.slice(0, 30).map((s) => (
+            <li key={s.id} className="card space-y-1 text-sm">
+              <p className="font-semibold break-words">{s.title}</p>
+              <p className="text-xs text-muted">{evolutionDate(s.date, todayIso)}</p>
+              {s.note && <p className="pt-1 break-words">Nota: {s.note}</p>}
+              <ol className="pt-1 text-muted">
+                {s.sets.map((x, i) => (
+                  <li key={i}>
+                    <span className="inline-block w-6 font-semibold text-ink">{i + 1}</span> {setLabel(x)}
+                  </li>
+                ))}
+              </ol>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   )

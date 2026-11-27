@@ -2,11 +2,20 @@
 // Quem pode ler e gravar é o banco que confere (RLS); aqui só buscamos e enviamos.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { useAuth } from '../auth/auth-context'
 import { todayBRT } from '../lib/dates'
 import type { HistoryEntry } from '../lib/evolution'
 import { supabase } from '../lib/supabase'
-import { writeDraft, type FinishedWorkout, type Routine, type RoutineExercise } from '../lib/workouts'
+import {
+  normalizeName,
+  recentExercises,
+  writeDraft,
+  type CatalogExercise,
+  type FinishedWorkout,
+  type Routine,
+  type RoutineExercise,
+} from '../lib/workouts'
 
 /** O banco ainda não tem a tabela (migration não aplicada)? */
 function isUnavailable(error: { message: string }): boolean {
@@ -112,4 +121,30 @@ export function useSaveWorkout() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['evolution'] }),
   })
+}
+
+/**
+ * Exercícios que a pessoa já usou: os do histórico (do mais recente para o mais antigo)
+ * e os dos treinos montados, com o vídeo que ela anexou aos que criou.
+ */
+export function useKnownExercises(): CatalogExercise[] {
+  const history = useWorkoutHistory()
+  const routines = useRoutines()
+  return useMemo(() => {
+    const out = recentExercises(history.data ?? [])
+    const seen = new Map(out.map((e, i) => [normalizeName(e.name), i]))
+    for (const r of routines.data ?? []) {
+      for (const e of r.exercises) {
+        const key = normalizeName(e.name)
+        const at = seen.get(key)
+        if (at === undefined) {
+          seen.set(key, out.length)
+          out.push({ name: e.name, muscle: e.muscle, ...(e.video ? { video: e.video } : {}) })
+        } else if (!out[at].video && e.video) {
+          out[at] = { ...out[at], video: e.video }
+        }
+      }
+    }
+    return out
+  }, [history.data, routines.data])
 }

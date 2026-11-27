@@ -1,16 +1,20 @@
-import { Dumbbell, Pencil, Play, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { BookOpen, ChevronRight, Dumbbell, Pencil, Play, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/auth-context'
-import { useRoutines } from '../hooks/useWorkouts'
-import { muscleLabel, readDraft, startWorkout, writeDraft, type Routine } from '../lib/workouts'
+import { useRoutines, useWorkoutHistory } from '../hooks/useWorkouts'
+import { todayBRT } from '../lib/dates'
+import { muscleLabel, muscleSets, readDraft, startWorkout, writeDraft, type Routine } from '../lib/workouts'
+import { BodyMap } from './ExerciseGuide'
 
 /** Treinos que a própria pessoa montou, com ou sem profissional. Fica na aba Treino do plano. */
 export function MyWorkouts() {
   const me = useAuth().session?.user.id
   const routines = useRoutines()
+  const history = useWorkoutHistory()
   const navigate = useNavigate()
   const [draft, setDraft] = useState(() => (me ? readDraft(me) : null))
+  const week = useMemo(() => muscleSets(history.data ?? [], todayBRT()), [history.data])
 
   // Sem a migration no banco, a seção não aparece.
   if (!me || !routines.data) return null
@@ -26,6 +30,17 @@ export function MyWorkouts() {
         <h2 className="text-lg font-bold">Meus treinos</h2>
         <p className="text-sm text-muted">Monte seus treinos e registre cada série, com ou sem personal.</p>
       </div>
+
+      <Link to="/plano/exercicios" className="card flex items-center gap-3 transition hover:border-ink/40">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lavender/20">
+          <BookOpen className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Biblioteca de exercícios</span>
+          <span className="block text-sm text-muted">Vídeo e passo a passo de como fazer cada um</span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+      </Link>
 
       {draft && (
         <div className="card space-y-3">
@@ -97,6 +112,14 @@ export function MyWorkouts() {
         <button type="button" className="btn-outline flex-1 gap-2" disabled={Boolean(draft)} onClick={() => start(null)}>
           <Dumbbell className="h-4 w-4" aria-hidden="true" /> Treino livre
         </button>
+      </div>
+
+      <div className="card space-y-3">
+        <div>
+          <h3 className="font-semibold">Músculos dos últimos 7 dias</h3>
+          <p className="text-xs text-muted">Séries feitas por músculo. Os músculos secundários contam meia série.</p>
+        </div>
+        <BodyMap sets={week} />
       </div>
     </section>
   )

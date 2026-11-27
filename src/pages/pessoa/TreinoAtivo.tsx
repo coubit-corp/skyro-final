@@ -1,12 +1,16 @@
-import { Check, Plus, Timer, Trash2, X } from 'lucide-react'
+import { Check, PlayCircle, Plus, Timer, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/auth-context'
+import { ExerciseGuidePanel } from '../../components/ExerciseGuide'
 import { ExercisePicker } from '../../components/ExercisePicker'
+import { Modal } from '../../components/ui'
 import { useSaveWorkout, useWorkoutHistory } from '../../hooks/useWorkouts'
 import {
   activeExercise,
   durationLabel,
+  exerciseInfo,
+  exercisePath,
   finishWorkout,
   formatKg,
   MAX_ROUTINE_EXERCISES,
@@ -39,6 +43,7 @@ export function TreinoAtivo() {
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [guide, setGuide] = useState<ActiveExercise | null>(null)
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -117,7 +122,11 @@ export function TreinoAtivo() {
           <article key={i} className="card space-y-3" aria-label={e.name}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <Link to={`/plano/exercicio/${encodeURIComponent(e.name)}`} className="font-semibold break-words underline-offset-2 hover:underline">
+                <Link
+                  to={exercisePath(e.name)}
+                  state={{ back: { to: '/plano/treino', label: 'Voltar ao treino' } }}
+                  className="font-semibold break-words underline-offset-2 hover:underline"
+                >
                   {e.name}
                 </Link>
                 <p className="text-xs text-muted">
@@ -125,14 +134,24 @@ export function TreinoAtivo() {
                   {e.target && ` · meta ${e.target} reps`}
                 </p>
               </div>
-              <button
-                type="button"
-                aria-label={`Remover ${e.name}`}
-                className="flex h-11 w-10 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-chip hover:text-ink"
-                onClick={() => update({ ...workout, exercises: workout.exercises.filter((_, j) => j !== i) })}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </button>
+              <div className="flex shrink-0">
+                <button
+                  type="button"
+                  aria-label={`Como fazer: ${e.name}`}
+                  className="flex h-11 w-10 items-center justify-center rounded-full text-muted transition hover:bg-chip hover:text-ink"
+                  onClick={() => setGuide(e)}
+                >
+                  <PlayCircle className="h-5 w-5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Remover ${e.name}`}
+                  className="flex h-11 w-10 items-center justify-center rounded-full text-muted transition hover:bg-chip hover:text-ink"
+                  onClick={() => update({ ...workout, exercises: workout.exercises.filter((_, j) => j !== i) })}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -293,6 +312,17 @@ export function TreinoAtivo() {
             <X className="h-4 w-4" aria-hidden="true" /> Pular
           </button>
         </div>
+      )}
+
+      {guide && (
+        <Modal open onClose={() => setGuide(null)} title={guide.name}>
+          <div className="max-h-[65vh] overflow-y-auto">
+            <ExerciseGuidePanel info={exerciseInfo(guide.name, [guide, ...recent])} />
+          </div>
+          <button type="button" className="btn-outline w-full" onClick={() => setGuide(null)}>
+            Fechar
+          </button>
+        </Modal>
       )}
 
       {picking && (
