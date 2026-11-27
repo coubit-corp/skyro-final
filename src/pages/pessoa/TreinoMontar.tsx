@@ -4,7 +4,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ExerciseGuidePanel } from '../../components/ExerciseGuide'
 import { ExercisePicker } from '../../components/ExercisePicker'
 import { ErrorState, Modal, PageHeader, Skeleton } from '../../components/ui'
-import { useDeleteRoutine, useRoutines, useSaveRoutine, useWorkoutHistory } from '../../hooks/useWorkouts'
+import { useDeleteRoutine, useRoutines, useSaveRoutine, useWorkoutHistory, WORKOUTS_NOT_ACTIVE } from '../../hooks/useWorkouts'
 import {
   exerciseInfo,
   MAX_ROUTINE_EXERCISES,
@@ -29,7 +29,14 @@ export function TreinoMontar() {
 
   if (routines.isLoading) return <Skeleton className="h-64" />
   if (routines.error) return <ErrorState message={routines.error.message} onRetry={() => routines.refetch()} />
-  if (!routines.data) return <Navigate to="/plano" replace />
+  if (!routines.data) {
+    return (
+      <section className="space-y-4">
+        <PageHeader title="Novo treino" back={BACK} />
+        <p className="card text-sm text-muted">{WORKOUTS_NOT_ACTIVE}</p>
+      </section>
+    )
+  }
   const editing = id ? routines.data.find((r) => r.id === id) : undefined
   if (id && !editing) return <Navigate to="/plano" replace />
   return <Editor key={id ?? 'novo'} routine={editing} />
