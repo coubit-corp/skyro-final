@@ -41,7 +41,7 @@ describe('evaluatePatient', () => {
     it('alerta com menos de 6h na última noite', () => {
       const r = evaluatePatient(week((i) => (i === 0 ? { sleep_hours: 5.5 } : {})), TODAY)
       expect(r.status).toBe('atencao')
-      expect(r.alerts).toEqual([{ kind: 'sono', message: 'Dormiu 5h30', days: 1 }])
+      expect(r.alerts).toEqual([{ kind: 'sono', message: 'Dormiu 5h30', days: 1, dates: [TODAY] }])
     })
 
     it('não alerta com exatamente 6h', () => {
@@ -65,7 +65,9 @@ describe('evaluatePatient', () => {
   describe('treinos', () => {
     it('alerta com 2 treinos planejados perdidos na semana', () => {
       const r = evaluatePatient(week((i) => (i === 1 || i === 3 ? { workout_done: false } : {})), TODAY)
-      expect(r.alerts).toEqual([{ kind: 'treino', message: 'Faltou a 2 treinos na semana', days: 3 }])
+      expect(r.alerts).toEqual([
+        { kind: 'treino', message: 'Faltou a 2 treinos na semana', days: 3, dates: [addDays(TODAY, -1), addDays(TODAY, -3)] },
+      ])
       expect(r.workoutsDone).toBe(5)
     })
 
@@ -88,6 +90,23 @@ describe('evaluatePatient', () => {
       expect(r.workoutsPlanned).toBe(5)
     })
 
+    it('dia sem registro não é falta, mesmo sem nenhum treino feito', () => {
+      // Só hoje e o dia 1 registrados; os outros 6 dias estão vazios.
+      const r = evaluatePatient([log(0), log(1, { workout_done: false })], TODAY)
+      expect(r.alerts.map((a) => a.kind)).not.toContain('treino')
+      expect(r.workoutsPlanned).toBe(1)
+    })
+
+    it('teste repetível: perfil limpo + 2 registros de falta fazem o alerta aparecer', () => {
+      // Estado inicial: registrou ontem e anteontem, com treino feito. Nenhum alerta.
+      const antes = [log(0), log(1), log(2)]
+      expect(evaluatePatient(antes, TODAY).status).toBe('em_dia')
+      // Ação: em Rotina, marcar "Tinha treino planejado?" sem "Treinei" em dois dias.
+      const depois = [log(0), log(1, { workout_done: false }), log(2, { workout_done: false })]
+      const alerta = evaluatePatient(depois, TODAY).alerts.find((a) => a.kind === 'treino')
+      expect(alerta?.dates).toEqual([addDays(TODAY, -1), addDays(TODAY, -2)])
+    })
+
     it('não olha além de 7 dias', () => {
       const r = evaluatePatient(week((i) => (i === 7 ? { workout_done: false } : {})).concat(log(9, { workout_done: false })), TODAY)
       expect(r.alerts.map((a) => a.kind)).not.toContain('treino')
@@ -97,7 +116,7 @@ describe('evaluatePatient', () => {
   describe('água', () => {
     it('alerta com menos de 50% da meta ontem', () => {
       const r = evaluatePatient(week((i) => (i === 1 ? { water_liters: 0.8 } : {})), TODAY)
-      expect(r.alerts).toEqual([{ kind: 'agua', message: 'Água: 0,8 L de 2 L', days: 1 }])
+      expect(r.alerts).toEqual([{ kind: 'agua', message: 'Água: 0,8 L de 2 L', days: 1, dates: [addDays(TODAY, -1)] }])
     })
 
     it('não alerta com exatamente 50%', () => {

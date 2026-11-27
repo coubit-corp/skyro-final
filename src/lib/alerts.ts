@@ -24,6 +24,8 @@ export interface Alert {
   message: string
   /** Há quantos dias a situação se repete (1 = só o dia mais recente). Ausente: nunca registrou. */
   days?: number
+  /** Datas (ISO, da mais recente para a mais antiga) dos registros que fizeram o alerta aparecer. */
+  dates?: string[]
 }
 
 export interface PatientStatus {
@@ -57,44 +59,53 @@ export function evaluatePatient(logs: DailyLog[], todayIso: string): PatientStat
   const lastSleep = lastNight?.sleep_hours ?? null
   if (lastNight && lastSleep != null && lastSleep < RULES.minSleepHours) {
     // Noites seguidas abaixo do mínimo, contando para trás a partir da última.
-    let nights = 0
+    const nights: string[] = []
     for (let d = lastNight.log_date; ; d = addDays(d, -1)) {
       const h = byDate.get(d)?.sleep_hours
       if (h == null || h >= RULES.minSleepHours) break
-      nights++
+      nights.push(d)
     }
-    alerts.push({ kind: 'sono', message: `Dormiu ${formatSleep(lastSleep)}`, days: nights })
+    alerts.push({ kind: 'sono', message: `Dormiu ${formatSleep(lastSleep)}`, days: nights.length, dates: nights })
   }
 
   // 2. Treinos dos últimos 7 dias, sem contar hoje (o treino de hoje ainda pode acontecer).
+  // Só conta como falta o dia registrado com "Tinha treino planejado?" e sem "Treinei".
+  // Dia sem registro não é falta: não dá para saber se a pessoa treinou.
   let planned = 0
   let done = 0
-  let missed = 0
+  const missedDates: string[] = []
   let firstMissed = 0
   for (let i = 1; i <= 7; i++) {
-    const log = byDate.get(addDays(todayIso, -i))
+    const date = addDays(todayIso, -i)
+    const log = byDate.get(date)
     if (!log?.workout_planned) continue
     planned++
     if (log.workout_done) done++
     else {
-      missed++
+      missedDates.push(date)
       firstMissed = i
     }
   }
-  if (missed >= RULES.maxMissedWorkouts) {
-    alerts.push({ kind: 'treino', message: `Faltou a ${missed} treinos na semana`, days: firstMissed })
+  if (missedDates.length >= RULES.maxMissedWorkouts) {
+    alerts.push({
+      kind: 'treino',
+      message: `Faltou a ${missedDates.length} treinos na semana`,
+      days: firstMissed,
+      dates: missedDates,
+    })
   }
 
   // 3. Água de ontem abaixo de 50% da meta.
   const y = byDate.get(yesterday)
   const lowWater = (l: DailyLog | undefined) => l?.water_liters != null && l.water_liters < l.water_goal_liters * RULES.minWaterRatio
   if (y?.water_liters != null && lowWater(y)) {
-    let waterDays = 0
-    for (let d = yesterday; lowWater(byDate.get(d)); d = addDays(d, -1)) waterDays++
+    const waterDates: string[] = []
+    for (let d = yesterday; lowWater(byDate.get(d)); d = addDays(d, -1)) waterDates.push(d)
     alerts.push({
       kind: 'agua',
       message: `Água: ${formatLiters(y.water_liters)} de ${formatLiters(y.water_goal_liters)}`,
-      days: waterDays,
+      days: waterDates.length,
+      dates: waterDates,
     })
   }
 
@@ -117,6 +128,17 @@ export function evaluatePatient(logs: DailyLog[], todayIso: string): PatientStat
     workoutsPlanned: planned,
     daysSinceLastLog,
   }
+}
+
+/**
+ * A regra de cada alerta em uma frase, para o profissional (e quem testa o app)
+ * saber exatamente o que faz o alerta aparecer.
+ */
+export const RULE_TEXT: Record<AlertKind, string> = {
+  sono: `Última noite registrada com menos de ${RULES.minSleepHours}h de sono.`,
+  treino: `${RULES.maxMissedWorkouts} ou mais dias, nos 7 anteriores a hoje, registrados em Rotina com "Tinha treino planejado?" marcado e "Treinei" desmarcado. Dia sem registro não conta como falta.`,
+  agua: `Água de ontem abaixo de ${Math.round(RULES.minWaterRatio * 100)}% da meta.`,
+  sem_registro: `Nenhum registro diário há ${RULES.maxDaysWithoutLog} dias ou mais.`,
 }
 
 /** Há quanto tempo o alerta existe, em texto: "há 3 dias", "desde ontem", "só hoje". */

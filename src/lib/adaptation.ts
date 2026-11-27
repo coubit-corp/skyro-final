@@ -9,7 +9,7 @@ export type Adaptation = 'curto' | 'sem_equipamento' | 'leve'
 export const ADAPTATIONS: { value: Adaptation; label: string; hint: string }[] = [
   { value: 'curto', label: 'Tenho 20 minutos', hint: 'Os primeiros exercícios, até caber em uns 20 minutos.' },
   { value: 'sem_equipamento', label: 'Estou sem equipamento', hint: 'Troca o que usa aparelho por um exercício com o peso do corpo.' },
-  { value: 'leve', label: 'Hoje está difícil', hint: 'Metade das séries, com carga mais leve. Melhor um treino leve do que faltar.' },
+  { value: 'leve', label: 'Hoje está difícil', hint: 'Metade das séries, com a mesma carga. Melhor um treino menor do que faltar.' },
 ]
 
 export const ALL_ADAPTATIONS: Adaptation[] = ADAPTATIONS.map((a) => a.value)
@@ -38,7 +38,7 @@ export interface AdaptedExercise extends AdaptableExercise {
   replaces?: string
   /** Fica de fora hoje (não cabe no tempo ou não tem substituto sem equipamento). */
   skipped?: boolean
-  /** Observação curta para a pessoa ("carga mais leve"). */
+  /** Observação curta para a pessoa ("2 de 4 séries"). Só descreve o que mudou. */
   tip?: string
 }
 
@@ -71,11 +71,12 @@ export function adaptWorkout(exercises: AdaptableExercise[], mode: Adaptation | 
   if (!mode) return exercises.map((e) => ({ ...e }))
 
   if (mode === 'leve') {
-    return exercises.map((e) => ({
-      ...e,
-      sets: Math.max(1, Math.ceil(e.sets / 2)),
-      tip: e.load ? 'carga mais leve que a combinada' : 'ritmo tranquilo',
-    }))
+    // Só as séries mudam. A carga continua a que o personal combinou: o app não
+    // inventa um peso mais leve que ele não definiu.
+    return exercises.map((e) => {
+      const sets = Math.max(1, Math.ceil(e.sets / 2))
+      return sets === e.sets ? { ...e } : { ...e, sets, tip: `${sets} de ${e.sets} séries` }
+    })
   }
 
   if (mode === 'curto') {
@@ -131,3 +132,42 @@ export function adaptRoutine(routine: Routine, mode: Adaptation | null): Routine
   })
   return { ...routine, name: `${routine.name} · ${adaptationLabel(mode)}`, exercises }
 }
+
+/** O que a versão adaptada mudou em relação ao treino completo. */
+export interface AdaptationChange {
+  /** Nenhum exercício mudou: a versão do dia é igual ao treino completo. */
+  unchanged: boolean
+  /** Minutos estimados do treino completo. */
+  fullMinutes: number
+  /** Minutos estimados da versão do dia. */
+  adaptedMinutes: number
+  /** Exercícios que ficam de fora hoje. */
+  skipped: string[]
+  /** Exercícios com menos séries ("Agachamento livre: 2 de 4 séries"). */
+  fewerSets: string[]
+  /** Exercícios trocados ("Supino reto → Flexão de braço"). */
+  replaced: string[]
+}
+
+export function describeAdaptation(original: AdaptableExercise[], adapted: AdaptedExercise[]): AdaptationChange {
+  const skipped: string[] = []
+  const fewerSets: string[] = []
+  const replaced: string[] = []
+  adapted.forEach((a, i) => {
+    const o = original[i]
+    if (a.skipped) skipped.push(o.name)
+    else if (a.replaces) replaced.push(`${a.replaces} → ${a.name}`)
+    else if (a.sets !== o.sets) fewerSets.push(`${o.name}: ${a.sets} de ${o.sets} séries`)
+  })
+  return {
+    unchanged: skipped.length + fewerSets.length + replaced.length === 0,
+    fullMinutes: adaptedMinutes(original),
+    adaptedMinutes: adaptedMinutes(adapted),
+    skipped,
+    fewerSets,
+    replaced,
+  }
+}
+
+/** Como o app estima o tempo, em uma frase, para a pessoa entender a conta. */
+export const TIME_ESTIMATE_NOTE = `estimativa do app: ${SET_SECONDS} s por série e 1 min de descanso quando o personal não definiu`

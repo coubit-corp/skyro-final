@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adaptedMinutes, adaptRoutine, adaptWorkout, estimateSeconds, isAdaptation, SHORT_MINUTES, type AdaptableExercise } from './adaptation'
+import { adaptedMinutes, adaptRoutine, adaptWorkout, describeAdaptation, estimateSeconds, isAdaptation, SHORT_MINUTES, type AdaptableExercise } from './adaptation'
 import { findCatalogExercise } from './workouts'
 
 // Plano do personal da demo: títulos escritos à mão, sem o equipamento entre parênteses.
@@ -23,12 +23,14 @@ describe('adaptWorkout', () => {
     expect(adaptWorkout(plano, null)).toEqual(plano)
   })
 
-  it('"Hoje está difícil": metade das séries (arredonda para cima) e carga mais leve', () => {
+  it('"Hoje está difícil": metade das séries (arredonda para cima) e a mesma carga', () => {
     const r = adaptWorkout(plano, 'leve')
     expect(r.map((e) => e.sets)).toEqual([2, 2, 2])
-    expect(r[0].tip).toBe('carga mais leve que a combinada')
-    expect(r[2].tip).toBe('ritmo tranquilo')
-    expect(adaptWorkout([{ name: 'x', sets: 1, reps: '10' }], 'leve')[0].sets).toBe(1)
+    // A carga é a que o personal combinou; a observação diz só o que mudou.
+    expect(r[0]).toMatchObject({ load: '40 kg', tip: '2 de 4 séries' })
+    expect(r[2].tip).toBe('2 de 3 séries')
+    expect(r.every((e) => !/carga/.test(e.tip ?? ''))).toBe(true)
+    expect(adaptWorkout([{ name: 'x', sets: 1, reps: '10' }], 'leve')[0]).toEqual({ name: 'x', sets: 1, reps: '10' })
   })
 
   it('"Sem equipamento": troca pelo peso do corpo e mantém o que já é sem aparelho', () => {
@@ -71,6 +73,24 @@ describe('adaptWorkout', () => {
 
   it('treino que já cabe em 20 minutos fica igual', () => {
     expect(adaptWorkout(plano, 'curto').every((e) => !e.skipped && !e.tip)).toBe(true)
+  })
+})
+
+describe('describeAdaptation', () => {
+  it('treino da demo em 20 minutos: nada muda e o tempo do completo aparece', () => {
+    const d = describeAdaptation(plano, adaptWorkout(plano, 'curto'))
+    expect(d.unchanged).toBe(true)
+    expect(d.fullMinutes).toBeLessThanOrEqual(SHORT_MINUTES)
+    expect(d.adaptedMinutes).toBe(d.fullMinutes)
+  })
+  it('lista o que saiu, o que perdeu séries e o que foi trocado', () => {
+    const longo = Array.from({ length: 6 }, (_, i) => ({ name: `Ex ${i}`, sets: 4, reps: '10', restSec: 90 }))
+    const d = describeAdaptation(longo, adaptWorkout(longo, 'curto'))
+    expect(d.unchanged).toBe(false)
+    expect(d.skipped.length).toBeGreaterThan(0)
+    expect(d.adaptedMinutes).toBeLessThan(d.fullMinutes)
+    expect(describeAdaptation(plano, adaptWorkout(plano, 'leve')).fewerSets[0]).toBe('Agachamento livre: 2 de 4 séries')
+    expect(describeAdaptation(plano, adaptWorkout(plano, 'sem_equipamento')).replaced[0]).toBe('Agachamento livre → Agachamento (peso do corpo)')
   })
 })
 
