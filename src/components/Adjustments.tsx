@@ -22,6 +22,7 @@ import {
   type AdjustmentKind,
   type AdjustmentRequest,
 } from '../lib/adjustments'
+import { useMyProfessional } from '../hooks/useProData'
 import { Avatar } from './Avatar'
 import { Modal } from './ui'
 
@@ -208,11 +209,21 @@ export function PendingAdjustments({ patients }: { patients: AdjustmentPatient[]
   )
 }
 
+/** Exemplo de proposta que faz sentido para a área de quem responde. */
+const PROPOSAL_EXAMPLE: Record<string, string> = {
+  nutricionista: 'trocamos o jantar por uma opção mais rápida',
+  personal: 'passamos o treino para sábado',
+  psicologo: 'adiantamos a sessão para quinta',
+  fisioterapeuta: 'reduzimos os exercícios em casa nesta semana',
+}
+
 function ProRequest({ request: r, patient }: { request: AdjustmentRequest; patient: AdjustmentPatient }) {
   const respond = useRespondAdjustment()
   const [proposal, setProposal] = useState('')
   const textId = useId()
   const first = patient.name.split(' ')[0]
+  const me = useMyProfessional()
+  const example = PROPOSAL_EXAMPLE[me.data?.specialty ?? ''] ?? 'nesta semana, vamos simplificar o plano'
   return (
     <li className="card min-w-0 space-y-3">
       <div className="flex items-center gap-3">
@@ -241,7 +252,7 @@ function ProRequest({ request: r, patient }: { request: AdjustmentRequest; patie
           id={textId}
           className="input min-h-20 w-full py-3"
           maxLength={ADJUSTMENT_TEXT_MAX}
-          placeholder={`Sua proposta para ${first} (ex.: passamos o treino para sábado)`}
+          placeholder={`Sua proposta para ${first} (ex.: ${example})`}
           value={proposal}
           onChange={(e) => setProposal(e.target.value)}
           required

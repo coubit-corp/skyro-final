@@ -94,7 +94,7 @@ export function Inicio() {
             ? 'Carregando seu dia…'
             : remaining === 0
               ? 'Você fechou o dia. Mandou bem!'
-              : `Faltam ${remaining} ${remaining === 1 ? 'hábito' : 'hábitos'} para fechar o dia.`}
+              : remaining === 1 ? 'Falta 1 hábito para fechar o dia.' : `Faltam ${remaining} hábitos para fechar o dia.`}
         </p>
       </div>
 
