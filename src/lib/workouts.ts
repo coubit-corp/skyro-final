@@ -1,7 +1,10 @@
 // Meus treinos: o que a pessoa monta e registra por conta própria.
 // Tudo aqui é cálculo puro; quem grava e protege os dados é o banco.
 
+import { addDays } from './dates'
 import type { HistoryEntry } from './evolution'
+import { EXERCISE_GUIDES, guessEquipment, type Equipment } from './exerciseGuide'
+import { parseVideoLink, watchUrl, type VideoRef } from './vitrine'
 
 export type Muscle =
   | 'peito'
@@ -39,6 +42,8 @@ export function muscleLabel(m: string | undefined): string {
 export interface CatalogExercise {
   name: string
   muscle: Muscle
+  /** Link do vídeo de como fazer, para exercícios criados pela pessoa. */
+  video?: string
 }
 
 const c = (muscle: Muscle, names: string[]): CatalogExercise[] => names.map((name) => ({ name, muscle }))
@@ -128,13 +133,92 @@ export function searchExercises(
   list: CatalogExercise[],
   query: string,
   muscle: Muscle | 'todos',
+  equipment: Equipment | 'todos' = 'todos',
 ): CatalogExercise[] {
   const words = normalizeName(query).split(' ').filter(Boolean)
   return list.filter((e) => {
     if (muscle !== 'todos' && e.muscle !== muscle) return false
+    if (equipment !== 'todos' && exerciseEquipment(e.name) !== equipment) return false
     const name = normalizeName(e.name)
     return words.every((w) => name.includes(w))
   })
+}
+
+// ------------------------------------------------------------ guia do exercício
+
+function catalogEntry(name: string): CatalogExercise | undefined {
+  const key = normalizeName(name)
+  return EXERCISE_CATALOG.find((e) => normalizeName(e.name) === key)
+}
+
+export function exerciseEquipment(name: string): Equipment | undefined {
+  const known = catalogEntry(name)
+  return (known && EXERCISE_GUIDES[known.name]?.equipment) ?? guessEquipment(name)
+}
+
+/** Link de vídeo aceito (YouTube, Vimeo ou Google Drive), já no formato padrão. Inválido: null. */
+export function cleanVideoLink(raw: string): string | null {
+  const ref = raw.trim() ? parseVideoLink(raw) : null
+  return ref ? watchUrl(ref) : null
+}
+
+export interface ExerciseInfo {
+  name: string
+  muscle: Muscle
+  secondary: Muscle[]
+  equipment?: Equipment
+  video: VideoRef | null
+  steps: string[]
+  /** Está na lista do app (com passo a passo), ou foi criado pela pessoa. */
+  fromCatalog: boolean
+}
+
+/**
+ * Tudo o que a tela mostra sobre um exercício. `known` são os exercícios que a pessoa
+ * já usou (com o vídeo que ela anexou aos que criou).
+ */
+export function exerciseInfo(name: string, known: CatalogExercise[] = []): ExerciseInfo {
+  const entry = catalogEntry(name)
+  const guide = entry ? EXERCISE_GUIDES[entry.name] : undefined
+  if (entry && guide) {
+    return {
+      name: entry.name,
+      muscle: entry.muscle,
+      secondary: guide.secondary,
+      equipment: guide.equipment,
+      video: { provider: 'youtube', id: guide.youtubeId },
+      steps: guide.steps,
+      fromCatalog: true,
+    }
+  }
+  const key = normalizeName(name)
+  const mine = known.find((e) => normalizeName(e.name) === key)
+  const linked = known.find((e) => normalizeName(e.name) === key && e.video)
+  return {
+    name: mine?.name ?? name,
+    muscle: mine?.muscle ?? 'outro',
+    secondary: [],
+    equipment: guessEquipment(name),
+    video: linked?.video ? parseVideoLink(linked.video) : null,
+    steps: [],
+    fromCatalog: false,
+  }
+}
+
+/** Endereço da tela do exercício. */
+export function exercisePath(name: string): string {
+  return `/plano/exercicio/${encodeURIComponent(name)}`
+}
+
+/** Estado da navegação para a tela do exercício: para onde o "voltar" leva. */
+export interface ExerciseBack {
+  back?: { to: string; label: string }
+}
+
+/** Outros exercícios da lista para o mesmo músculo principal. */
+export function similarExercises(name: string, muscle: Muscle, limit = 6): CatalogExercise[] {
+  const key = normalizeName(name)
+  return EXERCISE_CATALOG.filter((e) => e.muscle === muscle && normalizeName(e.name) !== key).slice(0, limit)
 }
 
 // ------------------------------------------------------------ treinos montados
@@ -153,6 +237,7 @@ export interface RoutineExercise {
   /** Texto livre: "10", "8-10", "até a falha". */
   reps: string
   rest_sec: number
+  video?: string
 }
 
 export interface Routine {
@@ -161,8 +246,10 @@ export interface Routine {
   exercises: RoutineExercise[]
 }
 
+const withVideo = (e: { video?: string }) => (e.video ? { video: e.video } : {})
+
 export function newRoutineExercise(e: CatalogExercise): RoutineExercise {
-  return { name: e.name, muscle: e.muscle, sets: 3, reps: '10', rest_sec: DEFAULT_REST }
+  return { name: e.name, muscle: e.muscle, sets: 3, reps: '10', rest_sec: DEFAULT_REST, ...withVideo(e) }
 }
 
 export function validateRoutine(name: string, exercises: RoutineExercise[]): string | null {
@@ -212,6 +299,7 @@ export interface ActiveExercise {
   target: string
   note: string
   sets: ActiveSet[]
+  video?: string
 }
 
 export interface ActiveWorkout {
@@ -234,12 +322,13 @@ export function startWorkout(routine: Routine | null, now: number): ActiveWorkou
       target: e.reps,
       note: '',
       sets: Array.from({ length: Math.min(Math.max(e.sets, 1), MAX_SETS) }, emptySet),
+      ...withVideo(e),
     })),
   }
 }
 
 export function activeExercise(e: CatalogExercise): ActiveExercise {
-  return { name: e.name, muscle: e.muscle, restSec: DEFAULT_REST, target: '', note: '', sets: [emptySet()] }
+  return { name: e.name, muscle: e.muscle, restSec: DEFAULT_REST, target: '', note: '', sets: [emptySet()], ...withVideo(e) }
 }
 
 /** "12,5" → 12.5; vazio ou inválido → null. */
@@ -299,7 +388,7 @@ export interface FinishedWorkout {
   title: string
   details: {
     duration_min: number
-    exercises: { name: string; muscle: Muscle; note?: string; sets: LoggedSet[] }[]
+    exercises: { name: string; muscle: Muscle; note?: string; video?: string; sets: LoggedSet[] }[]
   }
 }
 
@@ -310,6 +399,7 @@ export function finishWorkout(w: ActiveWorkout, now: number): FinishedWorkout | 
       name: e.name.trim().slice(0, EXERCISE_NAME_MAX),
       muscle: e.muscle,
       ...(e.note.trim() ? { note: e.note.trim().slice(0, 200) } : {}),
+      ...withVideo(e),
       sets: e.sets
         .filter((s) => s.done)
         .map((s) => ({ reps: parseNumber(s.reps), weight_kg: parseNumber(s.kg) || null })),
@@ -410,8 +500,41 @@ export function recentExercises(history: Workout[], limit = Infinity): CatalogEx
       const muscle = MUSCLES.some((m) => m.value === (e as { muscle?: string }).muscle)
         ? ((e as { muscle?: Muscle }).muscle as Muscle)
         : (known?.muscle ?? 'outro')
-      out.push({ name: known?.name ?? e.name, muscle })
+      const video = (e as { video?: unknown }).video
+      out.push({ name: known?.name ?? e.name, muscle, ...(!known && typeof video === 'string' ? { video } : {}) })
       if (out.length >= limit) return out
+    }
+  }
+  return out
+}
+
+// ------------------------------------------------------------ músculos da semana
+
+/** Músculo principal de um exercício registrado (o que veio salvo, ou o da lista). */
+function muscleOf(e: { name: string; muscle?: unknown }): Muscle {
+  if (MUSCLES.some((m) => m.value === e.muscle) && e.muscle !== 'outro') return e.muscle as Muscle
+  return catalogEntry(e.name)?.muscle ?? 'outro'
+}
+
+/**
+ * Séries feitas por músculo nos últimos `days` dias (hoje incluso). O músculo principal
+ * conta a série inteira; os secundários, meia série.
+ */
+export function muscleSets(history: Workout[], todayIso: string, days = 7): Partial<Record<Muscle, number>> {
+  const from = addDays(todayIso, -(days - 1))
+  const out: Partial<Record<Muscle, number>> = {}
+  const add = (m: Muscle, n: number) => {
+    if (m === 'outro' || m === 'cardio') return
+    out[m] = (out[m] ?? 0) + n
+  }
+  for (const w of history) {
+    if (w.occurred_on < from || w.occurred_on > todayIso) continue
+    for (const e of w.details?.exercises ?? []) {
+      const sets = Array.isArray(e.sets) ? e.sets.length : 0
+      if (!sets) continue
+      add(muscleOf(e), sets)
+      const entry = catalogEntry(e.name)
+      for (const s of (entry && EXERCISE_GUIDES[entry.name]?.secondary) || []) add(s, sets / 2)
     }
   }
   return out

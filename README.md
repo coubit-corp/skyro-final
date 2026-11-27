@@ -38,6 +38,8 @@ A Skyro é a **ponte entre a rotina que a pessoa registra no dia a dia e os prof
 
 **Meu plano:** tudo o que a equipe preparou, em quatro abas (Treino, Nutrição, Mente e Fisio). A pessoa marca o que fez no dia e, na fisioterapia, registra a dor de 0 a 10.
 
+**Meus treinos (com ou sem personal):** a pessoa monta os próprios treinos, registra cada série com carga, repetições e descanso, e vê a evolução e os recordes de cada exercício. A **biblioteca de exercícios** tem vídeo de como fazer e passo a passo para cada um, com filtro por músculo e equipamento, e o mapa do corpo mostra os músculos trabalhados nos últimos 7 dias.
+
 ### Para o profissional
 
 | Pacientes | Ficha do paciente | Dica para a pessoa | Cadastro |

@@ -36,6 +36,8 @@ export function Plano() {
   const plan = useMyPlan()
   const [params, setParams] = useSearchParams()
   const current = PLAN_TABS.find((t) => t.tab === params.get('aba')) ?? PLAN_TABS[0]
+  // Sem personal na equipe: o treino que a pessoa monta vem primeiro, e a busca por um profissional depois.
+  const solo = Boolean(plan.data) && prosOfTab(current, plan.data!).length === 0
   const tabsId = useId()
 
   return (
@@ -62,6 +64,7 @@ export function Plano() {
       </div>
 
       <div role="tabpanel" id={`${tabsId}-painel`} aria-labelledby={`${tabsId}-${current.tab}`} className="space-y-4">
+        {current.tab === 'treino' && solo && <MyWorkouts />}
         {plan.isLoading ? (
           <>
             <Skeleton className="h-36" />
@@ -72,7 +75,7 @@ export function Plano() {
         ) : (
           <TabContent tab={current} plan={plan.data!} />
         )}
-        {current.tab === 'treino' && <MyWorkouts />}
+        {current.tab === 'treino' && !solo && <MyWorkouts />}
       </div>
 
       <DemoBanner />

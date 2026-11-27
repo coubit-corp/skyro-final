@@ -1,10 +1,12 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, PlayCircle, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { ExerciseGuidePanel } from '../../components/ExerciseGuide'
 import { ExercisePicker } from '../../components/ExercisePicker'
-import { ErrorState, PageHeader, Skeleton } from '../../components/ui'
+import { ErrorState, Modal, PageHeader, Skeleton } from '../../components/ui'
 import { useDeleteRoutine, useRoutines, useSaveRoutine, useWorkoutHistory } from '../../hooks/useWorkouts'
 import {
+  exerciseInfo,
   MAX_ROUTINE_EXERCISES,
   MAX_SETS,
   muscleLabel,
@@ -43,6 +45,7 @@ function Editor({ routine }: { routine?: Routine }) {
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [guide, setGuide] = useState<RoutineExercise | null>(null)
   const recent = useMemo(() => recentExercises(history.data ?? []), [history.data])
 
   const patch = (i: number, p: Partial<RoutineExercise>) =>
@@ -91,6 +94,9 @@ function Editor({ routine }: { routine?: Routine }) {
                   <p className="text-xs text-muted">{muscleLabel(e.muscle)}</p>
                 </div>
                 <div className="flex shrink-0">
+                  <IconButton label={`Como fazer: ${e.name}`} onClick={() => setGuide(e)}>
+                    <PlayCircle className="h-5 w-5" aria-hidden="true" />
+                  </IconButton>
                   <IconButton label={`Subir ${e.name}`} disabled={i === 0} onClick={() => move(i, -1)}>
                     <ArrowUp className="h-4 w-4" aria-hidden="true" />
                   </IconButton>
@@ -186,6 +192,17 @@ function Editor({ routine }: { routine?: Routine }) {
             Apagar treino
           </button>
         ))}
+
+      {guide && (
+        <Modal open onClose={() => setGuide(null)} title={guide.name}>
+          <div className="max-h-[65vh] overflow-y-auto">
+            <ExerciseGuidePanel info={exerciseInfo(guide.name, [guide, ...recent])} />
+          </div>
+          <button type="button" className="btn-outline w-full" onClick={() => setGuide(null)}>
+            Fechar
+          </button>
+        </Modal>
+      )}
 
       {picking && (
         <ExercisePicker
