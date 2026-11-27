@@ -57,7 +57,7 @@ delete from community_posts;
 
 \echo '== Lucas (demo) =='
 set request.jwt.claim.sub = 'd0000000-0000-4000-8000-000000000001';
-\echo '-- ve so posts demo (esperado 6):'
+\echo '-- ve so posts demo (esperado 7, todos os do seed):'
 select count(*) from community_posts;
 \echo '-- nao ve autores reais (esperado 0):'
 select count(*) from community_authors where id::text like 'f9%';
